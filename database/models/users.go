@@ -41,3 +41,11 @@ func (u *TelegramUser) GetOrCreate(apiUser *tgbotapi.User, db pg.DB) error {
 
 	return err
 }
+
+type ShoppingCart struct {
+	ID int `json:"id"`
+	UserID int64 `json:"user_id"`
+	User *TelegramUser `pg:"rel:has-one"`
+	ProductID int `json:"product_id"`
+	Product *Product `pg:"rel:has-one"`
+}

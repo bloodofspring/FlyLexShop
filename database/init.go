@@ -26,6 +26,9 @@ func InitDb() error {
 
 	models := []interface{}{
 		(*models.TelegramUser)(nil),
+		(*models.Catalog)(nil),
+		(*models.Product)(nil),
+		(*models.ShoppingCart)(nil),
 	}
 
 	for _, model := range models {
