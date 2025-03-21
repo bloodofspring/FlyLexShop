@@ -41,6 +41,7 @@ func getBotActions(bot tgbotapi.BotAPI) handlers.ActiveHandlers {
 		handlers.CallbackQueryHandler.Product(actions.ChangePhone{Name: "change-phone", Client: bot}, []handlers.Filter{filters.ChangePhoneFilter}),
 		handlers.CallbackQueryHandler.Product(actions.ChangeDeliveryAddress{Name: "change-delivery-address", Client: bot}, []handlers.Filter{filters.ChangeDeliveryAddressFilter}),
 		handlers.CallbackQueryHandler.Product(actions.ChangeDeliveryService{Name: "change-delivery-service", Client: bot}, []handlers.Filter{filters.ChangeDeliveryServiceFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ViewCatalog{Name: "view-catalog", Client: bot}, []handlers.Filter{filters.ViewCatalogFilter}),
 	}}
 
 	return act

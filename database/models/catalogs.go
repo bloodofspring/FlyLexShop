@@ -26,3 +26,13 @@ type Product struct {
 	CatalogID int `json:"catalog_id"`
 	Catalog *Catalog `pg:"rel:has-one"`
 }
+
+func (p *Product) InUserCart(userId int64, db pg.DB) (bool, error) {
+	cart := []ShoppingCart{}
+	err := db.Model(&cart).Where("user_id = ?", userId).Where("product_id = ?", p.ID).Select()
+	if err != nil {
+		return false, err
+	}
+
+	return len(cart) > 0, nil
+}

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func DecryptCallDataParams(s string) map[string]string {
+func ParseCallbackData(s string) map[string]string {
 	res := make(map[string]string, 0)
 	if len(strings.Split(s, "?")) != 2 {
 		log.Println("DecryptCallDataParams says: неправильный формат входных данных! Should have one '?'")

@@ -27,6 +27,10 @@ var ProfileSettingsFilter = func(update tgbotapi.Update) bool {
 	return false
 }
 
+var ViewCatalogFilter = func(update tgbotapi.Update) bool {
+	return strings.HasPrefix(update.CallbackQuery.Data, "toCat")
+}
+
 var ShopFilter = func(update tgbotapi.Update) bool {
 	return update.CallbackQuery.Data == "shop"
 }
@@ -62,7 +66,7 @@ var ChangeDeliveryServiceFilter = func(update tgbotapi.Update) bool {
 		return false
 	}
 
-	params := DecryptCallDataParams(update.CallbackQuery.Data)
+	params := ParseCallbackData(update.CallbackQuery.Data)
 	service, ok := params["service"]
 	if !ok {
 		return true
