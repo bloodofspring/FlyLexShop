@@ -53,6 +53,7 @@ type ChangeName struct {
 }
 
 func (c ChangeName) Run(update tgbotapi.Update) error {
+	c.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
 	const text = "<b>Ваше ФИО сейчас: %s</b>\nВведите новое ФИО:"
 
 	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
@@ -140,6 +141,7 @@ type ChangePhone struct {
 }
 
 func (c ChangePhone) Run(update tgbotapi.Update) error {
+	c.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
 	const text = "<b>Ваш номер телефона сейчас: %v(%v)%v-%v</b>\nВведите новый номер телефона:"
 
 	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
@@ -244,6 +246,7 @@ type ChangeDeliveryAddress struct {
 }
 
 func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
+	c.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
 	const text = "<b>Ваш адрес доставки сейчас: %s</b>\nВведите новый адрес доставки:"
 
 	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
