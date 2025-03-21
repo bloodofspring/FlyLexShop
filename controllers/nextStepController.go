@@ -22,7 +22,7 @@ type NextStepKey struct {
 }
 
 type NextStepAction struct {
-	Func        func(stepUpdate tgbotapi.Update, stepParams map[string]any) error
+	Func        func(client tgbotapi.BotAPI, stepUpdate tgbotapi.Update, stepParams map[string]any) error
 	Params      map[string]any
 	CreatedAtTS int64
 }
@@ -49,7 +49,7 @@ func (n NextStepManager) RemoveNextStepAction(stepKey NextStepKey) {
 	delete(n.nextStepActions, stepKey)
 }
 
-func (n NextStepManager) RunUpdates(update tgbotapi.Update) error {
+func (n NextStepManager) RunUpdates(update tgbotapi.Update, client tgbotapi.BotAPI) error {
 	if update.Message == nil {
 		return nil
 	}
@@ -66,7 +66,7 @@ func (n NextStepManager) RunUpdates(update tgbotapi.Update) error {
 		return ErrMessageIsCommand
 	}
 
-	return action.Func(update, action.Params)
+	return action.Func(client, update, action.Params)
 }
 
 func (n *NextStepManager) ClearOldSteps() (int, error) {
@@ -83,8 +83,8 @@ func (n *NextStepManager) ClearOldSteps() (int, error) {
 	return deleted, nil
 }
 
-func RunStepUpdates(update tgbotapi.Update, stepManager *NextStepManager) {
-	err := stepManager.RunUpdates(update)
+func RunStepUpdates(update tgbotapi.Update, stepManager *NextStepManager, client tgbotapi.BotAPI) {
+	err := stepManager.RunUpdates(update, client)
 	if err != nil {
 		log.Printf("run next steps says: %v\n", err)
 	}

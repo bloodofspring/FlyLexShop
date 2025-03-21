@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"log"
 	"main/actions"
-	"main/database"
-	"main/handlers"
 	"main/controllers"
+	"main/database"
+	"main/filters"
+	"main/handlers"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
@@ -28,11 +29,9 @@ func connect() *tgbotapi.BotAPI {
 }
 
 func getBotActions(bot tgbotapi.BotAPI) handlers.ActiveHandlers {
-	startFilter := func(update tgbotapi.Update) bool { return update.Message.Command() == "start" }
-
 	act := handlers.ActiveHandlers{Handlers: []handlers.Handler{
-		// Place your handlers here
-		handlers.CommandHandler.Product(actions.SayHi{Name: "start-cmd", Client: bot}, []handlers.Filter{startFilter}),
+		handlers.CommandHandler.Product(actions.SayHi{Name: "start-cmd", Client: bot}, []handlers.Filter{filters.StartFilter}),
+		handlers.CallbackQueryHandler.Product(actions.RegisterUser{Name: "reg-user", Client: bot}, []handlers.Filter{filters.RegisterUserFilter}),
 	}}
 
 	return act
@@ -74,6 +73,6 @@ func main() {
 
 		_ = act.HandleAll(update)
 
-		controllers.RunStepUpdates(update, stepManager)
+		controllers.RunStepUpdates(update, stepManager, *client)
 	}
 }
