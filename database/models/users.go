@@ -11,10 +11,12 @@ type TelegramUser struct {
 	CreatedAtTS int64 `pg:",default:extract(epoch from now())" json:"created_at_ts"`
 	UpdatedAtTS int64 `pg:",default:extract(epoch from now())" json:"updated_at_ts"`
 
-	FIO string `json:"name"`
-	Phone string `json:"phone"`
-	DeliveryAddress string `json:"delivery_address"`
-	DeliveryService string `json:"delivery_service"`
+	FIO string `pg:",default:null" json:"name"`
+	Phone string `pg:",default:null" json:"phone"`
+	DeliveryAddress string `pg:",default:null" json:"delivery_address"`
+	DeliveryService string `pg:",default:cdek" json:"delivery_service"`
+
+	IsAuthorized bool `pg:",default:false" json:"is_authorized"`
 
 	Username string `json:"username"`
 	FirstName string `json:"first_name"`

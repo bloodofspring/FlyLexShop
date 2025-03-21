@@ -9,21 +9,35 @@ type MainMenu struct {
 }
 
 func (m MainMenu) Run(update tgbotapi.Update) error {
-	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "<b>Главное меню</b>/n Выберите опцию:")
-	message.ParseMode = "HTML"
-
+	const text = "<b>Главное меню</b>\nВыберите опцию:"
 
 	settingsCallbackData := "profileSettings"
 	shopCallbackData := "shop"
 	aboutCallbackData := "about"
 
-	message.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
+	keyboard := tgbotapi.InlineKeyboardMarkup{
 		InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
 			{{Text: "Настройки", CallbackData: &settingsCallbackData}},
 			{{Text: "Магазин", CallbackData: &shopCallbackData}},
 			{{Text: "О нас", CallbackData: &aboutCallbackData}},
 		},
 	}
+
+	if update.CallbackQuery != nil {
+		message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, text)
+		message.ParseMode = "HTML"
+
+		message.ReplyMarkup = &keyboard
+
+		_, err := m.Client.Send(message)
+
+		return err
+	}
+
+	message := tgbotapi.NewMessage(update.Message.Chat.ID, text)
+	message.ParseMode = "HTML"
+
+	message.ReplyMarkup = keyboard
 
 	_, err := m.Client.Send(message)
 

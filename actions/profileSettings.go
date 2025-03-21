@@ -19,7 +19,7 @@ type ProfileSettings struct {
 func (p ProfileSettings) Run(update tgbotapi.Update) error {
 	const text = "<b>Настройки профиля</b>\nВыберите опцию:"
 
-	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, text)
+	message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, text)
 	message.ParseMode = "HTML"
 
 	changeNameCallbackData := "changeName"
@@ -28,7 +28,7 @@ func (p ProfileSettings) Run(update tgbotapi.Update) error {
 	changeDeliveryServiceCallbackData := "changeDeliveryService"
 	toMainMenuCallbackData := "mainMenu"
 
-	message.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
+	message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
 		InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
 			{{Text: "Изменить ФИО", CallbackData: &changeNameCallbackData}},
 			{{Text: "Изменить номер телефона", CallbackData: &changePhoneCallbackData}},
@@ -85,15 +85,15 @@ func (c ChangeName) Run(update tgbotapi.Update) error {
 	stepManager := controllers.GetNextStepManager()
 	stepKey := controllers.NextStepKey{
 		ChatID: update.CallbackQuery.Message.Chat.ID,
-		UserID: update.CallbackQuery.Message.From.ID,
+		UserID: update.CallbackQuery.From.ID,
 	}
 	stepAction := controllers.NextStepAction{
 		Func: func(client tgbotapi.BotAPI, stepUpdate tgbotapi.Update, stepParams map[string]any) error {
 			db := database.Connect()
 			defer db.Close()
 
-			user := models.TelegramUser{ID: stepUpdate.CallbackQuery.Message.Chat.ID}
-			err := user.GetOrCreate(stepUpdate.CallbackQuery.Message.From, *db)
+			user := models.TelegramUser{ID: stepUpdate.Message.From.ID}
+			err := user.GetOrCreate(stepUpdate.Message.From, *db)
 			if err != nil {
 				return err
 			}
@@ -105,7 +105,7 @@ func (c ChangeName) Run(update tgbotapi.Update) error {
 				return err
 			}
 
-			message := tgbotapi.NewMessage(stepUpdate.CallbackQuery.Message.Chat.ID, "<b>ФИО успешно изменено</b>")
+			message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "<b>ФИО успешно изменено</b>")
 			message.ParseMode = "HTML"
 
 			toSettingsCallbackData := "profileSettings"
@@ -149,12 +149,12 @@ func (c ChangePhone) Run(update tgbotapi.Update) error {
 	defer db.Close()
 
 	user := models.TelegramUser{ID: update.CallbackQuery.Message.Chat.ID}
-	err := user.GetOrCreate(update.CallbackQuery.Message.From, *db)
+	err := user.GetOrCreate(update.CallbackQuery.From, *db)
 	if err != nil {
 		return err
 	}
 
-	message.Text = fmt.Sprintf(text, user.Phone[0], user.Phone[1:4], user.Phone[4:7], user.Phone[7:])
+	message.Text = fmt.Sprintf(text, user.Phone[0:1], user.Phone[1:4], user.Phone[4:7], user.Phone[7:])
 
 	toSettingsCallbackData := "profileSettings"
 	message.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
@@ -172,7 +172,7 @@ func (c ChangePhone) Run(update tgbotapi.Update) error {
 	stepManager := controllers.GetNextStepManager()
 	stepKey := controllers.NextStepKey{
 		ChatID: update.CallbackQuery.Message.Chat.ID,
-		UserID: update.CallbackQuery.Message.From.ID,
+		UserID: update.CallbackQuery.From.ID,
 	}
 	stepAction := controllers.NextStepAction{
 		Func: func(client tgbotapi.BotAPI, stepUpdate tgbotapi.Update, stepParams map[string]any) error {
@@ -180,8 +180,8 @@ func (c ChangePhone) Run(update tgbotapi.Update) error {
 			defer db.Close()
 
 			regex := regexp.MustCompile(`^[0-9]{11}$`)
-			if !regex.MatchString(update.Message.Text) {
-				message := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите номер телефона в формате 89991234567")
+			if !regex.MatchString(stepUpdate.Message.Text) {
+				message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "Введите номер телефона в формате 89991234567")
 
 				tryAgainCallbackData := "changePhone"
 				message.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
@@ -196,8 +196,8 @@ func (c ChangePhone) Run(update tgbotapi.Update) error {
 				return err
 			}
 
-			user := models.TelegramUser{ID: stepUpdate.CallbackQuery.Message.Chat.ID}
-			err := user.GetOrCreate(stepUpdate.CallbackQuery.Message.From, *db)
+			user := models.TelegramUser{ID: stepUpdate.Message.From.ID}
+			err := user.GetOrCreate(stepUpdate.Message.From, *db)
 			if err != nil {
 				return err
 			}
@@ -209,7 +209,7 @@ func (c ChangePhone) Run(update tgbotapi.Update) error {
 				return err
 			}
 
-			message := tgbotapi.NewMessage(stepUpdate.CallbackQuery.Message.Chat.ID, "<b>Номер телефона успешно изменен</b>")
+			message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "<b>Номер телефона успешно изменен</b>")
 			message.ParseMode = "HTML"
 
 			toSettingsCallbackData := "profileSettings"
@@ -253,7 +253,7 @@ func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 	defer db.Close()
 
 	user := models.TelegramUser{ID: update.CallbackQuery.Message.Chat.ID}
-	err := user.GetOrCreate(update.CallbackQuery.Message.From, *db)
+	err := user.GetOrCreate(update.CallbackQuery.From, *db)
 	if err != nil {
 		return err
 	}
@@ -276,15 +276,15 @@ func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 	stepManager := controllers.GetNextStepManager()
 	stepKey := controllers.NextStepKey{
 		ChatID: update.CallbackQuery.Message.Chat.ID,
-		UserID: update.CallbackQuery.Message.From.ID,
+		UserID: update.CallbackQuery.From.ID,
 	}
 	stepAction := controllers.NextStepAction{
 		Func: func(client tgbotapi.BotAPI, stepUpdate tgbotapi.Update, stepParams map[string]any) error {
 			db := database.Connect()
 			defer db.Close()
 
-			user := models.TelegramUser{ID: stepUpdate.CallbackQuery.Message.Chat.ID}
-			err := user.GetOrCreate(stepUpdate.CallbackQuery.Message.From, *db)
+			user := models.TelegramUser{ID: stepUpdate.Message.From.ID}
+			err := user.GetOrCreate(stepUpdate.Message.From, *db)
 			if err != nil {
 				return err
 			}
@@ -296,7 +296,7 @@ func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 				return err
 			}
 			
-			message := tgbotapi.NewMessage(stepUpdate.CallbackQuery.Message.Chat.ID, "<b>Адрес доставки успешно изменен</b>")
+			message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "<b>Адрес доставки успешно изменен</b>")
 			message.ParseMode = "HTML"
 
 			toSettingsCallbackData := "profileSettings"
@@ -365,14 +365,14 @@ func (c ChangeDeliveryService) GetKeyboard(userDb models.TelegramUser) [][]tgbot
 func (c ChangeDeliveryService) Run(update tgbotapi.Update) error {
 	const text = "<b>Ваш сервис доставки сейчас: %s</b>\nВыберите новый сервис доставки:"
 
-	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
+	message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "")
 	message.ParseMode = "HTML"
 
 	db := database.Connect()
 	defer db.Close()
 
-	user := models.TelegramUser{ID: update.CallbackQuery.Message.Chat.ID}
-	err := user.GetOrCreate(update.CallbackQuery.Message.From, *db)
+	user := models.TelegramUser{ID: update.CallbackQuery.From.ID}
+	err := user.GetOrCreate(update.CallbackQuery.From, *db)
 	if err != nil {
 		return err
 	}
@@ -380,7 +380,7 @@ func (c ChangeDeliveryService) Run(update tgbotapi.Update) error {
 	message.Text = fmt.Sprintf(text, user.DeliveryService)
 	
 	toSettingsCallbackData := "profileSettings"
-	message.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
+	message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
 		InlineKeyboard: append(c.GetKeyboard(user), []tgbotapi.InlineKeyboardButton{{Text: "К настройкам", CallbackData: &toSettingsCallbackData}}),
 	}
 

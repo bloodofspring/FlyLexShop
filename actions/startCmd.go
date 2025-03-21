@@ -13,7 +13,7 @@ type SayHi struct {
 }
 
 func (e SayHi) fabricateAnswer(update tgbotapi.Update) tgbotapi.MessageConfig {
-	const text = "Добрый день! Вы попали в бота компании FlyLex! Здесь вы можете приобрести нашу продукцию. \n Нажмите кнопку «Регистрация» чтобы продолжить"
+	const text = "Добрый день! Вы попали в бота компании FlyLex! Здесь вы можете приобрести нашу продукцию.\nНажмите кнопку «Регистрация» чтобы продолжить"
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
 
 	callbackData := "registerUser"

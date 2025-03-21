@@ -19,9 +19,12 @@ var MainMenuFilter = func(update tgbotapi.Update) bool {
 }
 
 var ProfileSettingsFilter = func(update tgbotapi.Update) bool {
-	controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{ChatID: update.Message.Chat.ID, UserID: update.Message.From.ID})
+	if update.CallbackQuery.Data == "profileSettings" {
+		controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{ChatID: update.CallbackQuery.Message.Chat.ID, UserID: update.CallbackQuery.From.ID})
+		return true
+	}
 
-	return update.CallbackQuery.Data == "profileSettings"
+	return false
 }
 
 var ShopFilter = func(update tgbotapi.Update) bool {

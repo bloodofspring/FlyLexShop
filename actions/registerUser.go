@@ -16,6 +16,19 @@ type RegisterUser struct {
 }
 
 func RegistrationCompleted(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
+	db := database.Connect()
+	defer db.Close()
+
+	user := models.TelegramUser{ID: update.Message.From.ID}
+	_ = user.GetOrCreate(update.Message.From, *db)
+
+	user.DeliveryAddress = update.Message.Text
+	user.IsAuthorized = true
+	_, err := db.Model(&user).WherePK().Update()
+	if err != nil {
+		return err
+	}
+
 	message := tgbotapi.NewMessage(update.Message.Chat.ID, "Вы успешно зарегистрированы! Нажмите «Главное меню» чтобы продолжить.")
 
 	callbackData := "mainMenu"
@@ -25,7 +38,7 @@ func RegistrationCompleted(client tgbotapi.BotAPI, update tgbotapi.Update, stepP
 		},
 	}
 
-	_, err := client.Send(message)
+	_, err = client.Send(message)
 	if err != nil {
 		return err
 	}
@@ -36,7 +49,7 @@ func RegistrationCompleted(client tgbotapi.BotAPI, update tgbotapi.Update, stepP
 func GetPVZFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	regex := regexp.MustCompile(`^[0-9]{11}$`)
 	if !regex.MatchString(update.Message.Text) {
-		message := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите номер телефона в формате 89991234567")
+		message := tgbotapi.NewMessage(update.Message.Chat.ID, "Неверный формат ввода!\n\nВведите номер телефона в формате 89991234567:")
 		_, err := client.Send(message)
 		if err != nil {
 			return err
@@ -49,7 +62,7 @@ func GetPVZFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[s
 			UserID: update.Message.From.ID,
 		}
 		stepAction := controllers.NextStepAction{
-			Func:        RegisterPhoneNumberFunc,
+			Func:        GetPVZFunc,
 			Params:      make(map[string]any),
 			CreatedAtTS: time.Now().Unix(),
 		}

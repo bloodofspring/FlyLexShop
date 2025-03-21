@@ -32,7 +32,8 @@ func getBotActions(bot tgbotapi.BotAPI) handlers.ActiveHandlers {
 	act := handlers.ActiveHandlers{Handlers: []handlers.Handler{
 		handlers.CommandHandler.Product(actions.SayHi{Name: "start-cmd", Client: bot}, []handlers.Filter{filters.StartFilter}),
 		handlers.CallbackQueryHandler.Product(actions.RegisterUser{Name: "reg-user", Client: bot}, []handlers.Filter{filters.RegisterUserFilter}),
-		handlers.CallbackQueryHandler.Product(actions.MainMenu{Name: "main-menu", Client: bot}, []handlers.Filter{filters.MainMenuFilter}),
+		handlers.CommandHandler.Product(actions.MainMenu{Name: "main-menu-cmd", Client: bot}, []handlers.Filter{filters.ToMainMenuFilter}),
+		handlers.CallbackQueryHandler.Product(actions.MainMenu{Name: "main-menu-btn", Client: bot}, []handlers.Filter{filters.MainMenuFilter}),
 		handlers.CallbackQueryHandler.Product(actions.ProfileSettings{Name: "profile-settings", Client: bot}, []handlers.Filter{filters.ProfileSettingsFilter}),
 		handlers.CallbackQueryHandler.Product(actions.Shop{Name: "shop", Client: bot}, []handlers.Filter{filters.ShopFilter}),
 		handlers.CallbackQueryHandler.Product(actions.About{Name: "about", Client: bot}, []handlers.Filter{filters.AboutFilter}),
