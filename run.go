@@ -32,6 +32,14 @@ func getBotActions(bot tgbotapi.BotAPI) handlers.ActiveHandlers {
 	act := handlers.ActiveHandlers{Handlers: []handlers.Handler{
 		handlers.CommandHandler.Product(actions.SayHi{Name: "start-cmd", Client: bot}, []handlers.Filter{filters.StartFilter}),
 		handlers.CallbackQueryHandler.Product(actions.RegisterUser{Name: "reg-user", Client: bot}, []handlers.Filter{filters.RegisterUserFilter}),
+		handlers.CallbackQueryHandler.Product(actions.MainMenu{Name: "main-menu", Client: bot}, []handlers.Filter{filters.MainMenuFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ProfileSettings{Name: "profile-settings", Client: bot}, []handlers.Filter{filters.ProfileSettingsFilter}),
+		handlers.CallbackQueryHandler.Product(actions.Shop{Name: "shop", Client: bot}, []handlers.Filter{filters.ShopFilter}),
+		handlers.CallbackQueryHandler.Product(actions.About{Name: "about", Client: bot}, []handlers.Filter{filters.AboutFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ChangeName{Name: "change-name", Client: bot}, []handlers.Filter{filters.ChangeNameFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ChangePhone{Name: "change-phone", Client: bot}, []handlers.Filter{filters.ChangePhoneFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ChangeDeliveryAddress{Name: "change-delivery-address", Client: bot}, []handlers.Filter{filters.ChangeDeliveryAddressFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ChangeDeliveryService{Name: "change-delivery-service", Client: bot}, []handlers.Filter{filters.ChangeDeliveryServiceFilter}),
 	}}
 
 	return act

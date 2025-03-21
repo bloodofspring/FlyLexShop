@@ -13,7 +13,8 @@ type TelegramUser struct {
 
 	FIO string `json:"name"`
 	Phone string `json:"phone"`
-	NearestPVZAddr string `json:"nearest_pvz_addr"`
+	DeliveryAddress string `json:"delivery_address"`
+	DeliveryService string `json:"delivery_service"`
 
 	Username string `json:"username"`
 	FirstName string `json:"first_name"`
