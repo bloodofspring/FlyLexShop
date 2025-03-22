@@ -340,7 +340,7 @@ func (c ChangeDeliveryService) GetKeyboard(userDb models.TelegramUser) [][]tgbot
 
 	createButton := func(cfg buttonConfig) tgbotapi.InlineKeyboardButton {
 		if cfg.Setting == userDb.DeliveryService {
-			cfg.Text += "✅"
+			cfg.Text += " ✅"
 		}
 
 		callQuery := fmt.Sprintf("changeDeliveryService?service=%s", cfg.Setting)

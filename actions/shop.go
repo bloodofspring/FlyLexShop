@@ -117,6 +117,7 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 	}
 
 	item := items[itemId]
+	fmt.Println(item)
 
 	keyboard := [][]tgbotapi.InlineKeyboardButton{}
 
@@ -146,19 +147,35 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 	toListOfCats := "shop"
 	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "К списку каталогов", CallbackData: &toListOfCats}})
 
-	v.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
-	if update.CallbackQuery.Message.Caption != "" {
-		message := tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, update.CallbackQuery.Message.Caption)
-		message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{InlineKeyboard: keyboard}
+	content := fmt.Sprintf("<b>%s</b>\nЦена: %d₽\n\n%s", item.Name, item.Price, item.Description)
 
-		_, err = v.Client.Send(message)
+	if update.CallbackQuery.Message.Caption != "" {
+		editMeida := tgbotapi.EditMessageMediaConfig{
+			BaseEdit: tgbotapi.BaseEdit{
+				ChatID:    update.CallbackQuery.Message.Chat.ID,
+				MessageID: update.CallbackQuery.Message.MessageID,
+			},
+			Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FileID(item.ImageFileID)),
+		}
+		_, err = v.Client.Send(editMeida)
 		if err != nil {
 			return err
 		}
+
+		editCaption := tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, content)
+		editCaption.ParseMode = "HTML"
+		editCaption.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{InlineKeyboard: keyboard}
+
+		_, err = v.Client.Send(editCaption)
+		if err != nil {
+			return err
+		}
+
 	} else {
+		v.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
 		photoMsg := tgbotapi.NewPhoto(update.CallbackQuery.Message.Chat.ID, tgbotapi.FileID(item.ImageFileID))
 		photoMsg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: keyboard}
-		photoMsg.Caption = item.Description
+		photoMsg.Caption = content
 		photoMsg.ParseMode = "HTML"
 
 		_, err = v.Client.Send(photoMsg)

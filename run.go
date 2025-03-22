@@ -14,6 +14,8 @@ import (
 )
 
 const debug = true
+// const debug = false
+
 
 func connect() *tgbotapi.BotAPI {
 	envFile, _ := godotenv.Read(".env")
@@ -23,6 +25,7 @@ func connect() *tgbotapi.BotAPI {
 		panic(err)
 	}
 
+	bot.Debug = debug
 	log.Printf("Successfully authorized on account @%s", bot.Self.UserName)
 
 	return bot
@@ -77,9 +80,9 @@ func main() {
 
 	updates := client.GetUpdatesChan(updateConfig)
 	for update := range updates {
-		if debug {
-			printUpdate(&update)
-		}
+		// if debug {
+		// 	printUpdate(&update)
+		// }
 
 		_ = act.HandleAll(update)
 
