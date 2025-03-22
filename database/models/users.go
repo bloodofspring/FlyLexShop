@@ -42,6 +42,25 @@ func (u *TelegramUser) GetOrCreate(apiUser *tgbotapi.User, db pg.DB) error {
 	return err
 }
 
+func (u *TelegramUser) GetTotalCartPrice(db pg.DB) (int, error) {
+	cart := []ShoppingCart{}
+	err := db.Model(&cart).Where("user_id = ?", u.ID).Select()
+	if err != nil {
+		return 0, err
+	}
+
+	totalPrice := 0
+	for _, item := range cart {
+		var product Product
+		err = db.Model(&product).Where("id = ?", item.ProductID).Select()
+		if err != nil {
+			continue
+		}
+		totalPrice += product.Price
+	}
+	return totalPrice, nil
+}
+
 type ShoppingCart struct {
 	ID int `json:"id"`
 	UserID int64 `json:"user_id"`

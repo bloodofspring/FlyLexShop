@@ -13,7 +13,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const debug = true
+const debug = false
 // const debug = false
 
 

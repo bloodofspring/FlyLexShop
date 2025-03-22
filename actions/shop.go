@@ -28,7 +28,7 @@ func (s Shop) Run(update tgbotapi.Update) error {
 	keyboard := [][]tgbotapi.InlineKeyboardButton{}
 
 	for _, cat := range catalogs {
-		callbackData := fmt.Sprintf("toCat?id=%d", cat.ID)
+		callbackData := fmt.Sprintf("toCat?catId=%d", cat.ID)
 		productCount, err := cat.GetProductCount(*db)
 		if err != nil {
 			return err
@@ -77,7 +77,7 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 	defer db.Close()
 
 	pars := filters.ParseCallbackData(update.CallbackQuery.Data)
-	catId, err := strconv.Atoi(pars["id"])
+	catId, err := strconv.Atoi(pars["catId"])
 	if err != nil {
 		return err
 	}
@@ -117,35 +117,69 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 	}
 
 	item := items[itemId]
-	fmt.Println(item)
+
+	remove, ok := pars["remove"]
+	if ok {
+		removeBool, err := strconv.ParseBool(remove)
+		if err != nil {
+			return err
+		}
+
+		if removeBool {
+			_, err = db.Model(&models.ShoppingCart{}).Where("user_id = ?", update.CallbackQuery.From.ID).Where("product_id = ?", item.ID).Delete()
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err = db.Model(&models.ShoppingCart{
+				UserID:    update.CallbackQuery.From.ID,
+				ProductID: item.ID,
+			}).Insert()
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	keyboard := [][]tgbotapi.InlineKeyboardButton{}
 
 	if ok, err := items[itemId].InUserCart(update.CallbackQuery.From.ID, *db); ok && err == nil {
-		callbackData := fmt.Sprintf("removeFromCart?itemId=%d", item.ID)
+		callbackData := fmt.Sprintf("toCat?catId=%d&itemId=%d&remove=true", catId, itemId)
 		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 			{Text: "Удалить из корзины", CallbackData: &callbackData},
 		})
 	} else if err != nil {
 		return err
 	} else {
-		callbackData := fmt.Sprintf("addToCart?itemId=%d", item.ID)
+		callbackData := fmt.Sprintf("toCat?catId=%d&itemId=%d&remove=false", catId, itemId)
 		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 			{Text: "Добавить в корзину", CallbackData: &callbackData},
 		})
 	}
 
 	if len(items) > 1 {
-		nextItemCallbackData := fmt.Sprintf("toCat?id=%d&itemId=%d", catId, itemId+1)
-		prevItemCallbackData := fmt.Sprintf("toCat?id=%d&itemId=%d", catId, itemId-1)
+		nextItemCallbackData := fmt.Sprintf("toCat?catId=%d&itemId=%d", catId, itemId+1)
+		prevItemCallbackData := fmt.Sprintf("toCat?catId=%d&itemId=%d", catId, itemId-1)
 		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 			{Text: "<--<<", CallbackData: &prevItemCallbackData},
 			{Text: ">>-->", CallbackData: &nextItemCallbackData},
 		})
 	}
 
+	userDb := models.TelegramUser{ID: update.CallbackQuery.From.ID}
+	err = userDb.GetOrCreate(update.CallbackQuery.From, *db)
+	if err != nil {
+		return err
+	}
+
+	totalPrice, err := userDb.GetTotalCartPrice(*db)
+	if err != nil {
+		return err
+	}
+
 	toListOfCats := "shop"
-	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "К списку каталогов", CallbackData: &toListOfCats}})
+	toCart := "cart"
+	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "К списку каталогов", CallbackData: &toListOfCats}, {Text: fmt.Sprintf("Корзина (%d₽)", totalPrice), CallbackData: &toCart}})
 
 	content := fmt.Sprintf("<b>%s</b>\nЦена: %d₽\n\n%s", item.Name, item.Price, item.Description)
 
