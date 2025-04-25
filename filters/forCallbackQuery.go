@@ -18,6 +18,10 @@ var MainMenuFilter = func(update tgbotapi.Update) bool {
 	return update.CallbackQuery.Data == "mainMenu"
 }
 
+var ViewCartFilter = func(update tgbotapi.Update) bool {
+	return strings.HasPrefix(update.CallbackQuery.Data, "viewCart")
+}
+
 var ProfileSettingsFilter = func(update tgbotapi.Update) bool {
 	if update.CallbackQuery.Data == "profileSettings" {
 		controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{ChatID: update.CallbackQuery.Message.Chat.ID, UserID: update.CallbackQuery.From.ID})
@@ -32,7 +36,7 @@ var ViewCatalogFilter = func(update tgbotapi.Update) bool {
 }
 
 var ShopFilter = func(update tgbotapi.Update) bool {
-	return update.CallbackQuery.Data == "shop"
+	return strings.HasPrefix(update.CallbackQuery.Data, "shop")
 }
 
 var AboutFilter = func(update tgbotapi.Update) bool {

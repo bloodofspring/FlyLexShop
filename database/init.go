@@ -29,6 +29,7 @@ func InitDb() error {
 		(*models.Catalog)(nil),
 		(*models.Product)(nil),
 		(*models.ShoppingCart)(nil),
+		(*models.ShopViewSession)(nil),
 	}
 
 	for _, model := range models {

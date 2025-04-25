@@ -1,15 +1,12 @@
 package filters
 
 import (
-	"log"
 	"strings"
 )
 
 func ParseCallbackData(s string) map[string]string {
 	res := make(map[string]string, 0)
 	if len(strings.Split(s, "?")) != 2 {
-		log.Println("DecryptCallDataParams says: неправильный формат входных данных! Should have one '?'")
-		log.Println("s", s)
 		return res
 	}
 	params := strings.Trim(strings.Split(s, "?")[1], " ")

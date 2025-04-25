@@ -19,6 +19,48 @@ func (s Shop) Run(update tgbotapi.Update) error {
 	db := database.Connect()
 	defer db.Close()
 
+	var data map[string]string = filters.ParseCallbackData(update.CallbackQuery.Data)
+	var session models.ShopViewSession
+
+	if sessionIdStr, ok := data["sessionId"]; ok {
+		sessionId, err := strconv.Atoi(sessionIdStr)
+		if err != nil {
+			return err
+		}
+
+		err = db.Model(&session).Where("id = ?", sessionId).Select()
+		if err != nil {
+			return err
+		}
+
+		// jumpToCatStr, ok := data["showCat"]
+		// var jumpToCat bool
+
+		// if ok {
+		// 	jumpToCat, err = strconv.ParseBool(jumpToCatStr)
+		// 	if err != nil || jumpToCat{
+		// 		if session.CatId != 0 {
+		// 			return ViewCatalog{Name: "viewCatalog", Client: s.Client}.Run(update)
+		// 		}
+		// 	}
+		// }
+	} else {
+		session = models.ShopViewSession{
+			UserId: update.CallbackQuery.From.ID,
+			ChatId: update.CallbackQuery.Message.Chat.ID,
+		}
+		_, err := db.Model(&session).Insert()
+
+		if err != nil {
+			return err
+		}
+
+		err = db.Model(&session).Where("id = ?", session.Id).Select()
+		if err != nil {
+			return err
+		}
+	}
+
 	catalogs := []models.Catalog{}
 	err := db.Model(&catalogs).Select()
 	if err != nil {
@@ -28,7 +70,7 @@ func (s Shop) Run(update tgbotapi.Update) error {
 	keyboard := [][]tgbotapi.InlineKeyboardButton{}
 
 	for _, cat := range catalogs {
-		callbackData := fmt.Sprintf("toCat?catId=%d", cat.ID)
+		callbackData := fmt.Sprintf("toCat?catId=%d&sessionId=%d", cat.ID, session.Id)
 		productCount, err := cat.GetProductCount(*db)
 		if err != nil {
 			return err
@@ -76,31 +118,53 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 	db := database.Connect()
 	defer db.Close()
 
-	pars := filters.ParseCallbackData(update.CallbackQuery.Data)
-	catId, err := strconv.Atoi(pars["catId"])
-	if err != nil {
-		return err
-	}
+	var data map[string]string = filters.ParseCallbackData(update.CallbackQuery.Data)
+	var session models.ShopViewSession
 
-	itemIdStr, ok := pars["itemId"]
-	if !ok {
-		itemIdStr = "0"
-	}
+	if sessionIdStr, ok := data["sessionId"]; ok {
+		sessionId, err := strconv.Atoi(sessionIdStr)
+		if err != nil {
+			return err
+		}
 
-	itemId, err := strconv.Atoi(itemIdStr)
-	if err != nil {
-		return err
+		err = db.Model(&session).Where("id = ?", sessionId).Select()
+		if err != nil {
+			return err
+		}
+
+		if catIdStr, ok := data["catId"]; ok {
+			catId, err := strconv.Atoi(catIdStr)
+			if err != nil {
+				return err
+			}
+			session.CatId = catId
+		}
+
+		if pageDeltaStr, ok := data["pageDelta"]; ok {
+			pageDelta, err := strconv.Atoi(pageDeltaStr)
+			if err != nil {
+				return err
+			}
+			session.ProductAtId += pageDelta
+		}
+
+		_, err = db.Model(&session).Where("id = ?", sessionId).Column("cat_id").Column("product_at_id").Update()
+		if err != nil {
+			return err
+		}
+	} else {
+		return Shop{Name: "shop", Client: v.Client}.Run(update)
 	}
 
 	var items []models.Product
-	err = db.Model(&items).Where("catalog_id = ?", catId).Select()
+	err := db.Model(&items).Where("catalog_id = ?", session.CatId).Select()
 	if err != nil {
 		return err
 	}
 
 	if len(items) == 0 {
 		message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "В этом каталоге пока что нет товаров")
-		toListOfCats := "shop"
+		toListOfCats := "shop?showCat=true"
 		message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
 			InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{{Text: "К списку каталогов", CallbackData: &toListOfCats}}},
 		}
@@ -110,15 +174,20 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 		}
 
 		return nil
-	} else if itemId >= len(items) {
-		itemId = 0
-	} else if itemId < 0 {
-		itemId = len(items) - 1
+	} else if session.ProductAtId >= len(items) {
+		session.ProductAtId = 0
+	} else if session.ProductAtId < 0 {
+		session.ProductAtId = len(items) - 1
 	}
 
-	item := items[itemId]
+	_, err = db.Model(&session).Where("id = ?", session.Id).Column("product_at_id").Update()
+	if err != nil {
+		return err
+	}
 
-	remove, ok := pars["remove"]
+	item := items[session.ProductAtId]
+
+	remove, ok := data["remove"]
 	if ok {
 		removeBool, err := strconv.ParseBool(remove)
 		if err != nil {
@@ -143,26 +212,26 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 
 	keyboard := [][]tgbotapi.InlineKeyboardButton{}
 
-	if ok, err := items[itemId].InUserCart(update.CallbackQuery.From.ID, *db); ok && err == nil {
-		callbackData := fmt.Sprintf("toCat?catId=%d&itemId=%d&remove=true", catId, itemId)
+	if ok, err := items[session.ProductAtId].InUserCart(update.CallbackQuery.From.ID, *db); ok && err == nil {
+		callbackData := "toCat?remove=true&sessionId=" + strconv.Itoa(session.Id)
 		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 			{Text: "Удалить из корзины", CallbackData: &callbackData},
 		})
 	} else if err != nil {
 		return err
 	} else {
-		callbackData := fmt.Sprintf("toCat?catId=%d&itemId=%d&remove=false", catId, itemId)
+		callbackData := "toCat?remove=false&sessionId=" + strconv.Itoa(session.Id)
 		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 			{Text: "Добавить в корзину", CallbackData: &callbackData},
 		})
 	}
 
 	if len(items) > 1 {
-		nextItemCallbackData := fmt.Sprintf("toCat?catId=%d&itemId=%d", catId, itemId+1)
-		prevItemCallbackData := fmt.Sprintf("toCat?catId=%d&itemId=%d", catId, itemId-1)
+		nextItemCallbackData := fmt.Sprintf("toCat?pageDelta=1&sessionId=%d", session.Id)
+		prevItemCallbackData := fmt.Sprintf("toCat?pageDelta=-1&sessionId=%d", session.Id)
 		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
-			{Text: "<--<<", CallbackData: &prevItemCallbackData},
-			{Text: ">>-->", CallbackData: &nextItemCallbackData},
+			{Text: "⬅️", CallbackData: &prevItemCallbackData},
+			{Text: "➡️", CallbackData: &nextItemCallbackData},
 		})
 	}
 
@@ -178,7 +247,7 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 	}
 
 	toListOfCats := "shop"
-	toCart := "cart"
+	toCart := "viewCart"
 	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "К списку каталогов", CallbackData: &toListOfCats}, {Text: fmt.Sprintf("Корзина (%d₽)", totalPrice), CallbackData: &toCart}})
 
 	content := fmt.Sprintf("<b>%s</b>\nЦена: %d₽\n\n%s", item.Name, item.Price, item.Description)
