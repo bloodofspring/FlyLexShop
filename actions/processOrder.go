@@ -123,7 +123,7 @@ func (p ProcessOrder) Run(update tgbotapi.Update) error {
 
 	pageText := fmt.Sprintf(processOrderPageText, totalPrice, envFile["payment_card_number"], envFile["payment_phone_number"], envFile["payment_bank"])
 
-	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, pageText)
+	msg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, pageText)
 	msg.ParseMode = "HTML"
 
 	_, err = p.Client.Send(msg)

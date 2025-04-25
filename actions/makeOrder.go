@@ -38,6 +38,7 @@ func (m MakeOrder) Run(update tgbotapi.Update) error {
 		return err
 	}
 
+	m.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
 	finalPageText := fmt.Sprintf(makeOrderPageText, totalPrice, user.Phone, user.FIO, user.DeliveryAddress, user.DeliveryService)
 
 	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, finalPageText)
