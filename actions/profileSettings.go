@@ -366,6 +366,8 @@ func (c ChangeDeliveryService) GetKeyboard(userDb models.TelegramUser) [][]tgbot
 }
 
 func (c ChangeDeliveryService) Run(update tgbotapi.Update) error {
+	ClearNextStepForUser(update, &c.Client)
+
 	const text = "<b>Ваш сервис доставки сейчас: %s</b>\nВыберите новый сервис доставки:"
 
 	message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "")

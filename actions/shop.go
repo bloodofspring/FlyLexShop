@@ -16,6 +16,8 @@ type Shop struct {
 }
 
 func (s Shop) Run(update tgbotapi.Update) error {
+	ClearNextStepForUser(update, &s.Client)
+
 	db := database.Connect()
 	defer db.Close()
 
@@ -115,6 +117,7 @@ type ViewCatalog struct {
 }
 
 func (v ViewCatalog) Run(update tgbotapi.Update) error {
+	ClearNextStepForUser(update, &v.Client)
 	db := database.Connect()
 	defer db.Close()
 

@@ -7,7 +7,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-var StartFilter = func(update tgbotapi.Update) bool {
+var StartFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	db := database.Connect()
 	defer db.Close()
 
@@ -17,7 +17,7 @@ var StartFilter = func(update tgbotapi.Update) bool {
 	return update.Message.Command() == "start" && !user.IsAuthorized
 }
 
-var ToMainMenuFilter = func(update tgbotapi.Update) bool {
+var ToMainMenuFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	db := database.Connect()
 	defer db.Close()
 

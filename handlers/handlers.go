@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Filter func(update tgbotapi.Update) bool
+type Filter func(update tgbotapi.Update, client tgbotapi.BotAPI) bool
 
 type Callback interface {
 	Run(update tgbotapi.Update) error
@@ -17,8 +17,8 @@ type Callback interface {
 
 type Handler interface {
 	checkType(update tgbotapi.Update) bool
-	checkFilters(update tgbotapi.Update) bool
-	run(update tgbotapi.Update) (bool, error)
+	checkFilters(update tgbotapi.Update, client tgbotapi.BotAPI) bool
+	run(update tgbotapi.Update, client tgbotapi.BotAPI) (bool, error)
 	getId() uuid.UUID
 	GetName() string
 }
@@ -52,9 +52,9 @@ func (h BaseHandler) checkType(update tgbotapi.Update) bool {
 	}
 }
 
-func (h BaseHandler) checkFilters(update tgbotapi.Update) bool {
+func (h BaseHandler) checkFilters(update tgbotapi.Update, client tgbotapi.BotAPI) bool {
 	for _, f := range h.filters {
-		if !f(update) {
+		if !f(update, client) {
 			return false
 		}
 	}
@@ -62,8 +62,8 @@ func (h BaseHandler) checkFilters(update tgbotapi.Update) bool {
 	return true
 }
 
-func (h BaseHandler) run(update tgbotapi.Update) (bool, error) {
-	if h.checkType(update) && h.checkFilters(update) {
+func (h BaseHandler) run(update tgbotapi.Update, client tgbotapi.BotAPI) (bool, error) {
+	if h.checkType(update) && h.checkFilters(update, client) {
 		return true, h.callback.Run(update)
 	}
 
@@ -74,11 +74,11 @@ type ActiveHandlers struct {
 	Handlers []Handler
 }
 
-func (hl ActiveHandlers) HandleAll(update tgbotapi.Update) map[uuid.UUID]bool {
+func (hl ActiveHandlers) HandleAll(update tgbotapi.Update, client tgbotapi.BotAPI) map[uuid.UUID]bool {
 	result := make(map[uuid.UUID]bool)
 
 	for _, h := range hl.Handlers {
-		runResult, err := h.run(update)
+		runResult, err := h.run(update, client)
 
 		if err != nil {
 			log.Println(h.GetName(), err)

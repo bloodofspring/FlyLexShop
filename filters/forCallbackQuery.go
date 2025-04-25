@@ -10,56 +10,60 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-var RegisterUserFilter = func(update tgbotapi.Update) bool {
+var RegisterUserFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return update.CallbackQuery.Data == "registerUser"
 }
 
-var MainMenuFilter = func(update tgbotapi.Update) bool {
+var MainMenuFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return update.CallbackQuery.Data == "mainMenu"
 }
 
-var ViewCartFilter = func(update tgbotapi.Update) bool {
+var ViewCartFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return strings.HasPrefix(update.CallbackQuery.Data, "viewCart")
 }
 
-var ProfileSettingsFilter = func(update tgbotapi.Update) bool {
+var ProfileSettingsFilter = func(update tgbotapi.Update, client tgbotapi.BotAPI) bool {
 	if update.CallbackQuery.Data == "profileSettings" {
-		controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{ChatID: update.CallbackQuery.Message.Chat.ID, UserID: update.CallbackQuery.From.ID})
+		controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{ChatID: update.CallbackQuery.Message.Chat.ID, UserID: update.CallbackQuery.From.ID}, client)
 		return true
 	}
 
 	return false
 }
 
-var ViewCatalogFilter = func(update tgbotapi.Update) bool {
+var ViewCatalogFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return strings.HasPrefix(update.CallbackQuery.Data, "toCat")
 }
 
-var ShopFilter = func(update tgbotapi.Update) bool {
+var ShopFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return strings.HasPrefix(update.CallbackQuery.Data, "shop")
 }
 
-var AboutFilter = func(update tgbotapi.Update) bool {
+var AboutFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return update.CallbackQuery.Data == "about"
 }
 
-var ChangeNameFilter = func(update tgbotapi.Update) bool {
+var ChangeNameFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return update.CallbackQuery.Data == "changeName"
 }
 
-var ChangePhoneFilter = func(update tgbotapi.Update) bool {
+var ChangePhoneFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return update.CallbackQuery.Data == "changePhone"
 }
 
-var ChangeDeliveryAddressFilter = func(update tgbotapi.Update) bool {
+var ChangeDeliveryAddressFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return update.CallbackQuery.Data == "changeDeliveryAddress"
 }
 
-var MakeOrderFilter = func(update tgbotapi.Update) bool {
+var MakeOrderFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return update.CallbackQuery.Data == "makeOrder"
 }
 
-var ChangeDeliveryServiceFilter = func(update tgbotapi.Update) bool {
+var ProcessOrderFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
+	return update.CallbackQuery.Data == "processOrder"
+}
+
+var ChangeDeliveryServiceFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	if !strings.HasPrefix(update.CallbackQuery.Data, "changeDeliveryService") {
 		return false
 	}

@@ -46,6 +46,9 @@ func getBotActions(bot tgbotapi.BotAPI) handlers.ActiveHandlers {
 		handlers.CallbackQueryHandler.Product(actions.ChangeDeliveryService{Name: "change-delivery-service", Client: bot}, []handlers.Filter{filters.ChangeDeliveryServiceFilter}),
 		handlers.CallbackQueryHandler.Product(actions.ViewCatalog{Name: "view-catalog", Client: bot}, []handlers.Filter{filters.ViewCatalogFilter}),
 		handlers.CallbackQueryHandler.Product(actions.ViewCart{Name: "view-cart", Client: bot}, []handlers.Filter{filters.ViewCartFilter}),
+
+		handlers.CallbackQueryHandler.Product(actions.MakeOrder{Name: "make-order", Client: bot}, []handlers.Filter{filters.MakeOrderFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ProcessOrder{Name: "process-order", Client: bot}, []handlers.Filter{filters.ProcessOrderFilter}),
 	}}
 
 	return act
@@ -81,11 +84,11 @@ func main() {
 
 	updates := client.GetUpdatesChan(updateConfig)
 	for update := range updates {
-		// if debug {
-		// 	printUpdate(&update)
-		// }
+		if debug {
+			printUpdate(&update)
+		}
 
-		_ = act.HandleAll(update)
+		_ = act.HandleAll(update, *client)
 
 		controllers.RunStepUpdates(update, stepManager, *client)
 	}

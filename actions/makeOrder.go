@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	pageText = "<b>Итог:</b>\nОбщая стоимость товаров: %dр.\n\n<b>Проверьте корректность ваших данных:</b>\n\n|_ Номер телефона: %s\n|_ ФИО: %s\n|_ Адрес ПВЗ: %s\n|_ Сервис доставки: %s"
+	makeOrderPageText = "<b>Итог:</b>\nОбщая стоимость товаров: %dр.\n\n<b>Проверьте корректность ваших данных:</b>\n\n|_ Номер телефона: %s\n|_ ФИО: %s\n|_ Адрес ПВЗ: %s\n|_ Сервис доставки: %s"
 )
 
 var (
@@ -23,10 +23,11 @@ type MakeOrder struct {
 }
 
 func (m MakeOrder) Run(update tgbotapi.Update) error {
+	ClearNextStepForUser(update, &m.Client)
 	db := database.Connect()
 	defer db.Close()
 
-	var user models.TelegramUser
+	user := models.TelegramUser{ID: update.CallbackQuery.From.ID}
 	err := user.Get(*db)
 	if err != nil {
 		return err
@@ -37,7 +38,7 @@ func (m MakeOrder) Run(update tgbotapi.Update) error {
 		return err
 	}
 
-	finalPageText := fmt.Sprintf(pageText, totalPrice, user.Phone, user.FIO, user.DeliveryAddress, user.DeliveryService)
+	finalPageText := fmt.Sprintf(makeOrderPageText, totalPrice, user.Phone, user.FIO, user.DeliveryAddress, user.DeliveryService)
 
 	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, finalPageText)
 	msg.ParseMode = "HTML"

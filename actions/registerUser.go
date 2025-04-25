@@ -150,6 +150,8 @@ func RegisterPhoneNumberFunc(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 }
 
 func (r RegisterUser) Run(update tgbotapi.Update) error {
+	ClearNextStepForUser(update, &r.Client)
+	
 	stepManager := controllers.GetNextStepManager()
 
 	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Введите ФИО")

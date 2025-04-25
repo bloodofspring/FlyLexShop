@@ -25,6 +25,7 @@ type NextStepAction struct {
 	Func        func(client tgbotapi.BotAPI, stepUpdate tgbotapi.Update, stepParams map[string]any) error
 	Params      map[string]any
 	CreatedAtTS int64
+	CancelMessage string
 }
 
 type NextStepManager struct {
@@ -45,7 +46,11 @@ func (n *NextStepManager) RegisterNextStepAction(stepKey NextStepKey, action Nex
 	n.nextStepActions[stepKey] = action
 }
 
-func (n NextStepManager) RemoveNextStepAction(stepKey NextStepKey) {
+func (n NextStepManager) RemoveNextStepAction(stepKey NextStepKey, bot tgbotapi.BotAPI) {
+	if n.nextStepActions[stepKey].CancelMessage != "" {
+		bot.Send(tgbotapi.NewMessage(stepKey.ChatID, n.nextStepActions[stepKey].CancelMessage))
+	}
+
 	delete(n.nextStepActions, stepKey)
 }
 
@@ -69,13 +74,13 @@ func (n NextStepManager) RunUpdates(update tgbotapi.Update, client tgbotapi.BotA
 	return action.Func(client, update, action.Params)
 }
 
-func (n *NextStepManager) ClearOldSteps() (int, error) {
+func (n *NextStepManager) ClearOldSteps(client tgbotapi.BotAPI) (int, error) {
 	now := time.Now().Unix()
 	deleted := 0
 
 	for key, action := range n.nextStepActions {
 		if now-action.CreatedAtTS > StepTimeout {
-			delete(n.nextStepActions, key)
+			n.RemoveNextStepAction(key, client)
 			deleted++
 		}
 	}
@@ -89,7 +94,7 @@ func RunStepUpdates(update tgbotapi.Update, stepManager *NextStepManager, client
 		log.Printf("run next steps says: %v\n", err)
 	}
 
-	stepsCleaned, err := stepManager.ClearOldSteps()
+	stepsCleaned, err := stepManager.ClearOldSteps(client)
 	if err != nil {
 		log.Printf("clear old steps says: %v\n", err)
 	} else if stepsCleaned != 0 {

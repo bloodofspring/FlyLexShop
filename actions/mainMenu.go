@@ -9,6 +9,7 @@ type MainMenu struct {
 }
 
 func (m MainMenu) Run(update tgbotapi.Update) error {
+	ClearNextStepForUser(update, &m.Client)
 	const text = "<b>Главное меню</b>\nВыберите опцию:"
 
 	settingsCallbackData := "profileSettings"
