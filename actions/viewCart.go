@@ -1,9 +1,7 @@
 package actions
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"main/database"
 	"main/database/models"
 	"main/filters"
@@ -17,7 +15,6 @@ type ViewCart struct {
 	Client tgbotapi.BotAPI
 }
 
-// ToDo: Отсмотреть это дерьмо со свежей головой
 func (v ViewCart) Run(update tgbotapi.Update) error {
 	db := database.Connect()
 	defer db.Close()
@@ -41,7 +38,7 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 	}
 
 	if len(items) == 0 {
-		_, err = v.Client.Send(tgbotapi.CallbackConfig{
+		_, err = v.Client.Request(tgbotapi.CallbackConfig{
 			CallbackQueryID: update.CallbackQuery.ID,
 			Text:            "В корзине пока что нет товаров",
 		})
@@ -65,43 +62,37 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 			return err
 		}
 
-		if err = db.Model(&items).Where("id IN (SELECT product_id FROM shopping_carts WHERE user_id = ?)", update.CallbackQuery.From.ID).Select(); err != nil {
-			if len(items) == 0 {
-				_, err = v.Client.Send(tgbotapi.CallbackConfig{
-					CallbackQueryID: update.CallbackQuery.ID,
-					Text:            "Теперь ваша карзина пуста",
-					ShowAlert:       true,
-				})
-				if err != nil {
-					return err
-				}
-
-				err = Shop{Name: "reset-to-shop", Client: v.Client}.Run(update)
-
-				return err
-			}
-		} else {
+		err = db.Model(&items).Where("id IN (SELECT product_id FROM shopping_carts WHERE user_id = ?)", update.CallbackQuery.From.ID).Select()
+		if err != nil {
 			return err
 		}
 
-		printUpdate := func(update *tgbotapi.Update) {
-			updateJSON, err := json.MarshalIndent(update, "", "    ")
+		if len(items) == 0 {
+			_, err = v.Client.Request(tgbotapi.CallbackConfig{
+				CallbackQueryID: update.CallbackQuery.ID,
+				Text:            "Теперь ваша карзина пуста",
+				ShowAlert:       true,
+			})
 			if err != nil {
-				return
+				return err
 			}
-		
-			log.Println(string(updateJSON))
-		}
-		printUpdate(&update)
-		err = ViewCart{Name: "view-cart", Client: v.Client}.Run(update)
 
-		return err
+			err = Shop{Name: "reset-to-shop", Client: v.Client}.Run(update)
+			return err
+		}
+
+		if itemId >= len(items) {
+			itemId = len(items) - 1
+		}
+
+		update.CallbackQuery.Data = fmt.Sprintf("viewCart?itemId=%d", itemId)
+		return ViewCart{Name: "view-cart", Client: v.Client}.Run(update)
 	}
 
 	keyboard := [][]tgbotapi.InlineKeyboardButton{}
 
 	if ok, err := items[itemId].InUserCart(update.CallbackQuery.From.ID, *db); ok && err == nil {
-		callbackData := fmt.Sprintf("viewCart?itemId=%d&remove=1", itemId)
+		callbackData := fmt.Sprintf("viewCart?itemId=%d&remove=true", itemId)
 		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 			{Text: "Удалить из корзины", CallbackData: &callbackData},
 		})
@@ -113,15 +104,14 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 		nextItemCallbackData := fmt.Sprintf("viewCart?itemId=%d", itemId+1)
 		prevItemCallbackData := fmt.Sprintf("viewCart?itemId=%d", itemId-1)
 		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
-			{Text: "<--<<", CallbackData: &prevItemCallbackData},
-			{Text: ">>-->", CallbackData: &nextItemCallbackData},
+			{Text: "⬅️", CallbackData: &prevItemCallbackData},
+			{Text: "➡️", CallbackData: &nextItemCallbackData},
 		})
 	}
 
 	toShop := "shop"
 	makeOrder := "makeOrder"
 	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "К списку каталогов", CallbackData: &toShop}, {Text: "Оформить заказ", CallbackData: &makeOrder}})
-
 
 	content := fmt.Sprintf("<b>%s</b>\nЦена: %d₽\n\n%s", item.Name, item.Price, item.Description)
 
@@ -166,4 +156,3 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 func (v ViewCart) GetName() string {
 	return v.Name
 }
-

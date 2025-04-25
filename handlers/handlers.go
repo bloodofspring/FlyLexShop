@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"fmt"
+	"log"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/google/uuid"
 )
@@ -18,6 +20,7 @@ type Handler interface {
 	checkFilters(update tgbotapi.Update) bool
 	run(update tgbotapi.Update) (bool, error)
 	getId() uuid.UUID
+	GetName() string
 }
 
 type BaseHandler struct {
@@ -25,6 +28,10 @@ type BaseHandler struct {
 	queryType string
 	callback  Callback
 	filters   []Filter
+}
+
+func (h BaseHandler) GetName() string {
+	return h.callback.GetName()
 }
 
 func (h BaseHandler) getId() uuid.UUID {
@@ -74,7 +81,7 @@ func (hl ActiveHandlers) HandleAll(update tgbotapi.Update) map[uuid.UUID]bool {
 		runResult, err := h.run(update)
 
 		if err != nil {
-			panic(err)
+			log.Println(h.GetName(), err)
 		}
 
 		result[h.getId()] = runResult
