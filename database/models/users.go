@@ -24,22 +24,39 @@ type TelegramUser struct {
 	IsAdmin bool `pg:",default:false" json:"is_admin"`
 }
 
-func (u *TelegramUser) UpdateProfileData(apiUser *tgbotapi.User) {
+func (u *TelegramUser) UpdateProfileData(apiUser *tgbotapi.User, db *pg.DB) error {
 	u.Username = apiUser.UserName
 	u.FirstName = apiUser.FirstName
 	u.LastName = apiUser.LastName
+
+	_, err := db.Model(u).
+		Where("id = ?", u.ID).
+		Column("username", "first_name", "last_name").
+		Update()
+	
+	return err
+}
+
+func (u *TelegramUser) Get(db pg.DB) error {
+	err := db.Model(u).Where("id = ?", u.ID).Select()
+
+	return err
 }
 
 func (u *TelegramUser) GetOrCreate(apiUser *tgbotapi.User, db pg.DB) error {
-	err := db.Model(u).Where("id = ?", u.ID).Select()
-
-	u.UpdateProfileData(apiUser)
+	err := u.Get(db)
 
 	if err == pg.ErrNoRows {
 		_, err = db.Model(u).Insert()
+		
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
 	}
 
-	return err
+	return u.UpdateProfileData(apiUser, &db)
 }
 
 func (u *TelegramUser) GetTotalCartPrice(db pg.DB) (int, error) {

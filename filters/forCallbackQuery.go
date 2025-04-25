@@ -55,6 +55,10 @@ var ChangeDeliveryAddressFilter = func(update tgbotapi.Update) bool {
 	return update.CallbackQuery.Data == "changeDeliveryAddress"
 }
 
+var MakeOrderFilter = func(update tgbotapi.Update) bool {
+	return update.CallbackQuery.Data == "makeOrder"
+}
+
 var ChangeDeliveryServiceFilter = func(update tgbotapi.Update) bool {
 	if !strings.HasPrefix(update.CallbackQuery.Data, "changeDeliveryService") {
 		return false
