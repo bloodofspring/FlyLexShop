@@ -76,8 +76,8 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 	photoMsg := tgbotapi.NewPhoto(chatID, tgbotapi.FileID(update.Message.Photo[len(update.Message.Photo)-1].FileID))
 	photoMsg.Caption = cartDesc
 
-	acceptData := "accept_order"
-	rejectData := "reject_order"
+	acceptData := "paymentVerdict?ok=true&userId=" + strconv.FormatInt(update.Message.From.ID, 10)
+	rejectData := "paymentVerdict?ok=false&userId=" + strconv.FormatInt(update.Message.From.ID, 10)
 	photoMsg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
 		InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
 			{

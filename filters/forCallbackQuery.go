@@ -63,6 +63,10 @@ var ProcessOrderFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return update.CallbackQuery.Data == "processOrder"
 }
 
+var PaymentVerdictFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
+	return strings.HasPrefix(update.CallbackQuery.Data, "paymentVerdict")
+}
+
 var ChangeDeliveryServiceFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	if !strings.HasPrefix(update.CallbackQuery.Data, "changeDeliveryService") {
 		return false
