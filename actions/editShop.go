@@ -29,15 +29,15 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 	case "removeCatalog":
 		removeCatalog(update, e.Client, data["sessionId"], *db)
 	case "removeProduct":
-		removeProduct(update, e.Client, data["productId"], *db)
+		removeProduct(update, e.Client, data["productId"], data["sessionId"], *db)
 	case "changePhoto":
-		changePhoto(update, e.Client, data["productId"])
+		changePhoto(update, e.Client, data["productId"], data["sessionId"])
 	case "changePrice":
-		changePrice(update, e.Client, data["productId"])
+		changePrice(update, e.Client, data["productId"], data["sessionId"])
 	case "changeName":
-		changeName(update, e.Client, data["productId"])
+		changeName(update, e.Client, data["productId"], data["sessionId"])
 	case "changeDescription":
-		changeDescription(update, e.Client, data["productId"])
+		changeDescription(update, e.Client, data["productId"], data["sessionId"])
 	case "createProduct":
 		createProduct(update, e.Client, data["sessionId"])
 	}
@@ -67,7 +67,7 @@ func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, sessionId str
 	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Каталог удален")
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("К списку каталогов", "shop"),
+			tgbotapi.NewInlineKeyboardButtonData("К списку каталогов", "shop?showCat=true&sessionId="+sessionId),
 		),
 	)
 	_, err = client.Send(msg)
@@ -75,7 +75,7 @@ func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, sessionId str
 	return err
 }
 
-func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, productId string, db pg.DB) error {
+func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, productId string, sessionId string, db pg.DB) error {
 	_, err := db.Model(&models.Product{}).Where("id = ?", productId).Delete()
 	if err != nil {
 		return err
@@ -93,16 +93,16 @@ func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, productId str
 		return err
 	}
 
-	return Shop{Name: "shop", Client: client}.Run(update)
+	return Shop{Name: "shop?showCat=false&sessionId="+sessionId, Client: client}.Run(update)
 }
 
-func baseForm(client tgbotapi.BotAPI, update tgbotapi.Update, params map[string]any, formText, CancelMessage string, formHandler controllers.NextStepFunc) error {
+func baseForm(client tgbotapi.BotAPI, update tgbotapi.Update, params map[string]any, formText, CancelMessage string, formHandler controllers.NextStepFunc, sessionId string) error {
 	client.Send(tgbotapi.NewDeleteMessage(GetMessage(update).Chat.ID, GetMessage(update).MessageID))
 
 	msg := tgbotapi.NewMessage(GetMessage(update).Chat.ID, formText)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Отмена", "shop"),
+			tgbotapi.NewInlineKeyboardButtonData("Отмена", "shop?showCat=false&sessionId="+sessionId),
 		),
 	)
 	_, err := client.Send(msg)
@@ -127,13 +127,13 @@ func baseForm(client tgbotapi.BotAPI, update tgbotapi.Update, params map[string]
 	return nil
 }
 
-func baseFormSuccess(client tgbotapi.BotAPI, update tgbotapi.Update, successMessage string) error {
+func baseFormSuccess(client tgbotapi.BotAPI, update tgbotapi.Update, successMessage string, sessionId string) error {
 	ClearNextStepForUser(update, &client, false)
 
 	msg := tgbotapi.NewMessage(GetMessage(update).Chat.ID, successMessage)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("К списку товаров", "shop"),
+			tgbotapi.NewInlineKeyboardButtonData("К списку товаров", "shop?showCat=false&sessionId="+sessionId),
 		),
 	)
 	_, err := client.Send(msg)
@@ -141,11 +141,11 @@ func baseFormSuccess(client tgbotapi.BotAPI, update tgbotapi.Update, successMess
 	return err
 }
 
-func baseFormResend(client tgbotapi.BotAPI, update tgbotapi.Update, formText, CancelMessage string, stepParams map[string]any, formHandler controllers.NextStepFunc) error {
+func baseFormResend(client tgbotapi.BotAPI, update tgbotapi.Update, formText, CancelMessage string, stepParams map[string]any, formHandler controllers.NextStepFunc, sessionId string) error {
 	msg := tgbotapi.NewMessage(GetMessage(update).Chat.ID, formText)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Отмена", "shop"),
+			tgbotapi.NewInlineKeyboardButtonData("Отмена", "shop?showCat=false&sessionId="+sessionId),
 		),
 	)
 	_, err := client.Send(msg)
@@ -170,10 +170,11 @@ func baseFormResend(client tgbotapi.BotAPI, update tgbotapi.Update, formText, Ca
 	return nil
 }
 
-func changePhoto(update tgbotapi.Update, client tgbotapi.BotAPI, productId string) error {
+func changePhoto(update tgbotapi.Update, client tgbotapi.BotAPI, productId string, sessionId string) error {
 	return baseForm(client, update, map[string]any{
 		"productId": productId,
-	}, "Отправьте ниже новое фото товара", "Фото не обновлено", changePhotoHandler)
+		"sessionId": sessionId,
+	}, "Отправьте ниже новое фото товара", "Фото не обновлено", changePhotoHandler, sessionId)
 }
 
 func changePhotoHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
@@ -182,7 +183,7 @@ func changePhotoHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 
 	photo := update.Message.Photo
 	if len(photo) == 0 {
-		return baseFormResend(client, update, "Отправьте ниже новое фото товара", "Фото не обновлено", stepParams, changePhotoHandler)
+		return baseFormResend(client, update, "Отправьте ниже новое фото товара", "Фото не обновлено", stepParams, changePhotoHandler, stepParams["sessionId"].(string))
 	}
 
 	photoID := photo[len(photo)-1].FileID
@@ -195,13 +196,14 @@ func changePhotoHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 		return err
 	}
 
-	return baseFormSuccess(client, update, "Фото обновлено!")
+	return baseFormSuccess(client, update, "Фото обновлено!", stepParams["sessionId"].(string))
 }
 
-func changePrice(update tgbotapi.Update, client tgbotapi.BotAPI, productId string) error {
+func changePrice(update tgbotapi.Update, client tgbotapi.BotAPI, productId string, sessionId string) error {
 	return baseForm(client, update, map[string]any{
 		"productId": productId,
-	}, "Отправьте ниже новую цену товара", "Цена не обновлена", changePriceHandler)
+		"sessionId": sessionId,
+	}, "Отправьте ниже новую цену товара", "Цена не обновлена", changePriceHandler, sessionId)
 }
 
 func changePriceHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
@@ -213,7 +215,7 @@ func changePriceHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 	priceInt, err := strconv.Atoi(price)
 	
 	if err != nil {
-		return baseFormResend(client, update, "Отправьте ниже новую цену товара (целое число!)", "Цена не обновлена", stepParams, changePriceHandler)
+		return baseFormResend(client, update, "Отправьте ниже новую цену товара (целое число!)", "Цена не обновлена", stepParams, changePriceHandler, stepParams["sessionId"].(string))
 	}
 
 	db := database.Connect()
@@ -224,13 +226,14 @@ func changePriceHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 		return err
 	}
 
-	return baseFormSuccess(client, update, "Цена обновлена!")
+	return baseFormSuccess(client, update, "Цена обновлена!", stepParams["sessionId"].(string))
 }
 
-func changeName(update tgbotapi.Update, client tgbotapi.BotAPI, productId string) error {
+func changeName(update tgbotapi.Update, client tgbotapi.BotAPI, productId string, sessionId string) error {
 	return baseForm(client, update, map[string]any{
 		"productId": productId,
-	}, "Отправьте ниже новое название товара", "Название не обновлено", changeNameHandler)
+		"sessionId": sessionId,
+	}, "Отправьте ниже новое название товара", "Название не обновлено", changeNameHandler, sessionId)
 }
 
 func changeNameHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
@@ -240,7 +243,7 @@ func changeNameHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParam
 	name := update.Message.Text
 
 	if name == "" {
-		return baseFormResend(client, update, "Название не может быть пустым", "Название не обновлено", stepParams, changeNameHandler)
+		return baseFormResend(client, update, "Название не может быть пустым", "Название не обновлено", stepParams, changeNameHandler, stepParams["sessionId"].(string))
 	}
 
 	db := database.Connect()
@@ -251,13 +254,14 @@ func changeNameHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParam
 		return err
 	}
 
-	return baseFormSuccess(client, update, "Название обновлено!")
+	return baseFormSuccess(client, update, "Название обновлено!", stepParams["sessionId"].(string))
 }
 
-func changeDescription(update tgbotapi.Update, client tgbotapi.BotAPI, productId string) error {
+func changeDescription(update tgbotapi.Update, client tgbotapi.BotAPI, productId string, sessionId string) error {
 	return baseForm(client, update, map[string]any{
 		"productId": productId,
-	}, "Отправьте ниже новое описание товара", "Описание не обновлено", changeDescriptionHandler)
+		"sessionId": sessionId,
+	}, "Отправьте ниже новое описание товара", "Описание не обновлено", changeDescriptionHandler, sessionId)
 }
 
 func changeDescriptionHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
@@ -267,7 +271,7 @@ func changeDescriptionHandler(client tgbotapi.BotAPI, update tgbotapi.Update, st
 	description := update.Message.Text
 
 	if description == "" {
-		return baseFormResend(client, update, "Описание не может быть пустым", "Описание не обновлено", stepParams, changeDescriptionHandler)
+		return baseFormResend(client, update, "Описание не может быть пустым", "Описание не обновлено", stepParams, changeDescriptionHandler, stepParams["sessionId"].(string))
 	}
 	
 	db := database.Connect()
@@ -278,13 +282,13 @@ func changeDescriptionHandler(client tgbotapi.BotAPI, update tgbotapi.Update, st
 		return err
 	}
 
-	return baseFormSuccess(client, update, "Описание обновлено!")
+	return baseFormSuccess(client, update, "Описание обновлено!", stepParams["sessionId"].(string))
 }
 
 func createProduct(update tgbotapi.Update, client tgbotapi.BotAPI, sessionId string) error {
 	return baseForm(client, update, map[string]any{
 		"sessionId": sessionId,
-	}, "Отправьте ниже название товара", "Товар не создан", registerNewProductName)
+	}, "Отправьте ниже название товара", "Товар не создан", registerNewProductName, sessionId)
 }
 
 func registerNewProductName(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
@@ -294,7 +298,7 @@ func registerNewProductName(client tgbotapi.BotAPI, update tgbotapi.Update, step
 	name := update.Message.Text
 
 	if name == "" {
-		return baseFormResend(client, update, "Название не может быть пустым", "Товар не создан", stepParams, registerNewProductName)
+		return baseFormResend(client, update, "Название не может быть пустым", "Товар не создан", stepParams, registerNewProductName, stepParams["sessionId"].(string))
 	}
 	
 	db := database.Connect()
@@ -306,7 +310,7 @@ func registerNewProductName(client tgbotapi.BotAPI, update tgbotapi.Update, step
 	}
 
 	stepParams["productName"] = name
-	return baseForm(client, update, stepParams, "Отправьте ниже цену товара", "Товар не создан", registerNewProductPrice)
+	return baseForm(client, update, stepParams, "Отправьте ниже цену товара", "Товар не создан", registerNewProductPrice, stepParams["sessionId"].(string))
 }
 
 func registerNewProductPrice(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
@@ -317,7 +321,7 @@ func registerNewProductPrice(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 	
 	priceInt, err := strconv.Atoi(price)
 	if err != nil {
-		return baseFormResend(client, update, "Цена должна быть числом", "Товар не создан", stepParams, registerNewProductPrice)
+		return baseFormResend(client, update, "Цена должна быть числом", "Товар не создан", stepParams, registerNewProductPrice, stepParams["sessionId"].(string))
 	}
 
 	db := database.Connect()
@@ -329,7 +333,7 @@ func registerNewProductPrice(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 	}
 	
 	stepParams["productPrice"] = priceInt
-	return baseForm(client, update, stepParams, "Отправьте ниже описание товара", "Товар не создан", registerNewProductDescription)
+	return baseForm(client, update, stepParams, "Отправьте ниже описание товара", "Товар не создан", registerNewProductDescription, stepParams["sessionId"].(string))
 }
 
 func registerNewProductDescription(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
@@ -339,7 +343,7 @@ func registerNewProductDescription(client tgbotapi.BotAPI, update tgbotapi.Updat
 	description := update.Message.Text
 	
 	if description == "" {
-		return baseFormResend(client, update, "Описание не может быть пустым", "Товар не создан", stepParams, registerNewProductDescription)
+		return baseFormResend(client, update, "Описание не может быть пустым", "Товар не создан", stepParams, registerNewProductDescription, stepParams["sessionId"].(string))
 	}
 
 	db := database.Connect()
@@ -351,7 +355,7 @@ func registerNewProductDescription(client tgbotapi.BotAPI, update tgbotapi.Updat
 	}
 
 	stepParams["productDescription"] = description
-	return baseForm(client, update, stepParams, "Отправьте ниже фото товара", "Товар не создан", registerNewProductPhoto)
+	return baseForm(client, update, stepParams, "Отправьте ниже фото товара", "Товар не создан", registerNewProductPhoto, stepParams["sessionId"].(string))
 }
 
 func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
@@ -359,7 +363,7 @@ func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
 	photo := update.Message.Photo
 	if len(photo) == 0 {
-		return baseFormResend(client, update, "Отправьте ниже фото товара", "Товар не создан", stepParams, registerNewProductPhoto)
+		return baseFormResend(client, update, "Отправьте ниже фото товара", "Товар не создан", stepParams, registerNewProductPhoto, stepParams["sessionId"].(string))
 	}
 
 	photoID := photo[len(photo)-1].FileID
@@ -388,7 +392,7 @@ func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 		return err
 	}
 
-	return baseFormSuccess(client, update, "Товар успешно создан!")
+	return baseFormSuccess(client, update, "Товар успешно создан!", stepParams["sessionId"].(string))
 }
 
 func (e EditShop) GetName() string {

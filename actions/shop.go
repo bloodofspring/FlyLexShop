@@ -34,18 +34,6 @@ func (s Shop) Run(update tgbotapi.Update) error {
 		if err != nil {
 			return err
 		}
-
-		// jumpToCatStr, ok := data["showCat"]
-		// var jumpToCat bool
-
-		// if ok {
-		// 	jumpToCat, err = strconv.ParseBool(jumpToCatStr)
-		// 	if err != nil || jumpToCat{
-		// 		if session.CatId != 0 {
-		// 			return ViewCatalog{Name: "viewCatalog", Client: s.Client}.Run(update)
-		// 		}
-		// 	}
-		// }
 	} else {
 		session = models.ShopViewSession{
 			UserId: update.CallbackQuery.From.ID,
@@ -60,6 +48,16 @@ func (s Shop) Run(update tgbotapi.Update) error {
 		err = db.Model(&session).Where("id = ?", session.Id).Select()
 		if err != nil {
 			return err
+		}
+	}
+
+	if showCatStr, ok := data["showCat"]; ok {
+		showCat, err := strconv.ParseBool(showCatStr)
+		if err == nil && !showCat {
+			if session.CatId != 0 {
+				s.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
+				return ViewCatalog{Name: "viewCatalog", Client: s.Client}.Run(update)
+			}
 		}
 	}
 
@@ -275,11 +273,11 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 	if userDb.IsAdmin {
 		var (
 			removeCatalogCallbackData = fmt.Sprintf("editShop?a=removeCatalog&sessionId=%d", session.Id)
-			removeProductCallbackData = fmt.Sprintf("editShop?a=removeProduct&productId=%d", item.ID)
-			changePhotoCallbackData = fmt.Sprintf("editShop?a=changePhoto&productId=%d", item.ID)
-			changePriceCallbackData = fmt.Sprintf("editShop?a=changePrice&productId=%d", item.ID)
-			changeNameCallbackData = fmt.Sprintf("editShop?a=changeName&productId=%d", item.ID)
-			changeDescriptionCallbackData = fmt.Sprintf("editShop?a=changeDescription&productId=%d", item.ID)
+			removeProductCallbackData = fmt.Sprintf("editShop?a=removeProduct&productId=%d&sessionId=%d", item.ID, session.Id)
+			changePhotoCallbackData = fmt.Sprintf("editShop?a=changePhoto&productId=%d&sessionId=%d", item.ID, session.Id)
+			changePriceCallbackData = fmt.Sprintf("editShop?a=changePrice&productId=%d&sessionId=%d", item.ID, session.Id)
+			changeNameCallbackData = fmt.Sprintf("editShop?a=changeName&productId=%d&sessionId=%d", item.ID, session.Id)
+			changeDescriptionCallbackData = fmt.Sprintf("editShop?a=changeDescription&productId=%d&sessionId=%d", item.ID, session.Id)
 			addProductCallbackData = fmt.Sprintf("editShop?a=createProduct&sessionId=%d", session.Id)
 		)
 		keyboard = append(
