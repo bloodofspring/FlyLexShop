@@ -176,12 +176,28 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 		return err
 	}
 
+	userDb := models.TelegramUser{ID: update.CallbackQuery.From.ID}
+	err = userDb.Get(*db)
+	if err != nil {
+		return err
+	}
+
 	if len(items) == 0 {
 		message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "В этом каталоге пока что нет товаров")
 		toListOfCats := "shop?showCat=true"
 		message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
 			InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{{Text: "К списку каталогов", CallbackData: &toListOfCats}}},
 		}
+
+		if userDb.IsAdmin {
+			removeCatalogCallbackData := fmt.Sprintf("editShop?a=removeCatalog&sessionId=%d", session.Id)
+			message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
+				InlineKeyboard: append(message.ReplyMarkup.InlineKeyboard, []tgbotapi.InlineKeyboardButton{
+					{Text: "Удалить каталог", CallbackData: &removeCatalogCallbackData},
+				}),
+			}
+		}
+
 		_, err = v.Client.Send(message)
 		if err != nil {
 			return err
@@ -249,15 +265,35 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 		})
 	}
 
-	userDb := models.TelegramUser{ID: update.CallbackQuery.From.ID}
-	err = userDb.GetOrCreate(update.CallbackQuery.From, *db)
+	totalPrice, err := userDb.GetTotalCartPrice(*db)
 	if err != nil {
 		return err
 	}
 
-	totalPrice, err := userDb.GetTotalCartPrice(*db)
-	if err != nil {
-		return err
+	if userDb.IsAdmin {
+		var (
+			removeCatalogCallbackData = fmt.Sprintf("editShop?a=removeCatalog&sessionId=%d", session.Id)
+			removeProductCallbackData = fmt.Sprintf("editShop?a=removeProduct&productId=%d", item.ID)
+			changePhotoCallbackData = fmt.Sprintf("editShop?a=changePhoto&productId=%d", item.ID)
+			changePriceCallbackData = fmt.Sprintf("editShop?a=changePrice&productId=%d", item.ID)
+			changeNameCallbackData = fmt.Sprintf("editShop?a=changeName&productId=%d", item.ID)
+			changeDescriptionCallbackData = fmt.Sprintf("editShop?a=changeDescription&productId=%d", item.ID)
+		)
+		keyboard = append(
+			keyboard,
+			[]tgbotapi.InlineKeyboardButton{
+				{Text: "Удалить каталог", CallbackData: &removeCatalogCallbackData},
+				{Text: "Удалить товар", CallbackData: &removeProductCallbackData},
+			},
+			[]tgbotapi.InlineKeyboardButton{
+				{Text: "Изменить фото", CallbackData: &changePhotoCallbackData},
+				{Text: "Изменить цену", CallbackData: &changePriceCallbackData},
+			},
+			[]tgbotapi.InlineKeyboardButton{
+				{Text: "Изменить название", CallbackData: &changeNameCallbackData},
+				{Text: "Изменить описание", CallbackData: &changeDescriptionCallbackData},
+			},
+		)
 	}
 
 	toListOfCats := "shop"

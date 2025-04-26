@@ -75,6 +75,10 @@ var CancelFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return update.CallbackQuery.Data == "cancel"
 }
 
+var EditShopFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
+	return strings.HasPrefix(update.CallbackQuery.Data, "editShop")
+}
+
 var ChangeDeliveryServiceFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	if !strings.HasPrefix(update.CallbackQuery.Data, "changeDeliveryService") {
 		return false
