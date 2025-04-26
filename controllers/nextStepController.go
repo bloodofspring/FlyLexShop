@@ -21,8 +21,10 @@ type NextStepKey struct {
 	UserID int64
 }
 
+type NextStepFunc func(client tgbotapi.BotAPI, stepUpdate tgbotapi.Update, stepParams map[string]any) error
+
 type NextStepAction struct {
-	Func        func(client tgbotapi.BotAPI, stepUpdate tgbotapi.Update, stepParams map[string]any) error
+	Func        NextStepFunc
 	Params      map[string]any
 	CreatedAtTS int64
 	CancelMessage string
