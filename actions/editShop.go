@@ -1,9 +1,11 @@
 package actions
 
 import (
+	"main/controllers"
 	"main/database"
 	"main/database/models"
 	"main/filters"
+	"time"
 
 	"github.com/go-pg/pg/v10"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -92,7 +94,93 @@ func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, productId str
 }
 
 func changePhoto(update tgbotapi.Update, client tgbotapi.BotAPI, productId string, db pg.DB) error {
+	client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
+
+	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Отправьте ниже новое фото товара")
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Отмена", "shop"),
+		),
+	)
+	_, err := client.Send(msg)
+	if err != nil {
+		return err
+	}
+
+	stepKey := controllers.NextStepKey{
+		UserID: update.CallbackQuery.From.ID,
+		ChatID: update.CallbackQuery.Message.Chat.ID,
+	}
+
+	stepAction := controllers.NextStepAction{
+		Func: changePhotoHandler,
+		Params: map[string]interface{}{
+			"productId": productId,
+			"db": db,
+		},
+		CreatedAtTS: time.Now().Unix(),
+		CancelMessage: "Фото не обновлено",
+	}
+
+	controllers.GetNextStepManager().RegisterNextStepAction(stepKey, stepAction)
+
 	return nil
+}
+
+func changePhotoHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
+	photo := update.Message.Photo
+	if len(photo) == 0 {
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Отправьте фото товара")
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Отмена", "shop"),
+			),
+		)
+		_, err := client.Send(msg)
+		if err != nil {
+			return err
+		}
+
+		stepKey := controllers.NextStepKey{
+			UserID: update.Message.From.ID,
+			ChatID: update.Message.Chat.ID,
+		}
+
+		stepAction := controllers.NextStepAction{
+			Func: changePhotoHandler,
+			Params: map[string]interface{}{
+				"productId": stepParams["productId"],
+				"db": stepParams["db"],
+			},
+			CreatedAtTS: time.Now().Unix(),
+			CancelMessage: "Фото не обновлено",
+		}
+
+		controllers.GetNextStepManager().RegisterNextStepAction(stepKey, stepAction)
+
+		return nil
+	}
+
+	photoID := photo[len(photo)-1].FileID
+
+	_, err := stepParams["db"].(*pg.DB).Model(&models.Product{}).Where("id = ?", stepParams["productId"]).Set("image_file_id = ?", photoID).Update()
+	if err != nil {
+		return err
+	}
+
+	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
+
+	_, err = client.Request(tgbotapi.CallbackConfig{
+		CallbackQueryID: update.CallbackQuery.ID,
+		Text:            "Фото обновлено!",
+		ShowAlert:       true,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return Shop{Name: "shop", Client: client}.Run(update)
 }
 
 func changePrice(update tgbotapi.Update, client tgbotapi.BotAPI, productId string, db pg.DB) error {
