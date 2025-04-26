@@ -104,7 +104,7 @@ type ProcessOrder struct {
 }
 
 func (p ProcessOrder) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &p.Client)
+	ClearNextStepForUser(update, &p.Client, true)
 	db := database.Connect()
 	defer db.Close()
 

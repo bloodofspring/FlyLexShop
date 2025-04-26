@@ -24,7 +24,7 @@ var ViewCartFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 
 var ProfileSettingsFilter = func(update tgbotapi.Update, client tgbotapi.BotAPI) bool {
 	if update.CallbackQuery.Data == "profileSettings" {
-		controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{ChatID: update.CallbackQuery.Message.Chat.ID, UserID: update.CallbackQuery.From.ID}, client)
+		controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{ChatID: update.CallbackQuery.Message.Chat.ID, UserID: update.CallbackQuery.From.ID}, client, true)
 		return true
 	}
 
@@ -65,6 +65,14 @@ var ProcessOrderFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 
 var PaymentVerdictFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	return strings.HasPrefix(update.CallbackQuery.Data, "paymentVerdict")
+}
+
+var AddCatalogFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
+	return update.CallbackQuery.Data == "addCatalog"
+}
+
+var CancelFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
+	return update.CallbackQuery.Data == "cancel"
 }
 
 var ChangeDeliveryServiceFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {

@@ -46,8 +46,8 @@ func (n *NextStepManager) RegisterNextStepAction(stepKey NextStepKey, action Nex
 	n.nextStepActions[stepKey] = action
 }
 
-func (n NextStepManager) RemoveNextStepAction(stepKey NextStepKey, bot tgbotapi.BotAPI) {
-	if n.nextStepActions[stepKey].CancelMessage != "" {
+func (n NextStepManager) RemoveNextStepAction(stepKey NextStepKey, bot tgbotapi.BotAPI, sendCancelMessage bool) {
+	if sendCancelMessage && n.nextStepActions[stepKey].CancelMessage != "" {
 		bot.Send(tgbotapi.NewMessage(stepKey.ChatID, n.nextStepActions[stepKey].CancelMessage))
 	}
 
@@ -80,7 +80,7 @@ func (n *NextStepManager) ClearOldSteps(client tgbotapi.BotAPI) (int, error) {
 
 	for key, action := range n.nextStepActions {
 		if now-action.CreatedAtTS > StepTimeout {
-			n.RemoveNextStepAction(key, client)
+			n.RemoveNextStepAction(key, client, true)
 			deleted++
 		}
 	}

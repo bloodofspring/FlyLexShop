@@ -6,7 +6,7 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func ClearNextStepForUser(update tgbotapi.Update, client *tgbotapi.BotAPI) {
+func ClearNextStepForUser(update tgbotapi.Update, client *tgbotapi.BotAPI, sendCancelMessage bool) {
 	var user *tgbotapi.User
 	var chat *tgbotapi.Chat
 
@@ -29,5 +29,5 @@ func ClearNextStepForUser(update tgbotapi.Update, client *tgbotapi.BotAPI) {
 	controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{
 		ChatID: chat.ID,
 		UserID: user.ID,
-	}, *client)
+	}, *client, sendCancelMessage)
 }

@@ -50,6 +50,10 @@ func getBotActions(bot tgbotapi.BotAPI) handlers.ActiveHandlers {
 		handlers.CallbackQueryHandler.Product(actions.MakeOrder{Name: "make-order", Client: bot}, []handlers.Filter{filters.MakeOrderFilter}),
 		handlers.CallbackQueryHandler.Product(actions.ProcessOrder{Name: "process-order", Client: bot}, []handlers.Filter{filters.ProcessOrderFilter}),
 		handlers.CallbackQueryHandler.Product(actions.PaymentVerdict{Name: "payment-verdict", Client: bot}, []handlers.Filter{filters.PaymentVerdictFilter}),
+	
+		handlers.CallbackQueryHandler.Product(actions.AddCatalog{Name: "add-catalog", Client: bot}, []handlers.Filter{filters.AddCatalogFilter}),
+
+		handlers.CallbackQueryHandler.Product(actions.Cancel{Name: "cancel", Client: bot}, []handlers.Filter{filters.CancelFilter}),
 	}}
 
 	return act

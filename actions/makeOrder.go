@@ -23,7 +23,7 @@ type MakeOrder struct {
 }
 
 func (m MakeOrder) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &m.Client)
+	ClearNextStepForUser(update, &m.Client, true)
 	db := database.Connect()
 	defer db.Close()
 

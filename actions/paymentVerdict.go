@@ -20,7 +20,7 @@ type PaymentVerdict struct {
 }
 
 func (p PaymentVerdict) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &p.Client)
+	ClearNextStepForUser(update, &p.Client, true)
 
 	data := filters.ParseCallbackData(update.CallbackQuery.Data)
 

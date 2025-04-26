@@ -16,7 +16,7 @@ type ViewCart struct {
 }
 
 func (v ViewCart) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &v.Client)
+	ClearNextStepForUser(update, &v.Client, true)
 
 	db := database.Connect()
 	defer db.Close()

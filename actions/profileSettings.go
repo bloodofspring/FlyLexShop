@@ -366,7 +366,7 @@ func (c ChangeDeliveryService) GetKeyboard(userDb models.TelegramUser) [][]tgbot
 }
 
 func (c ChangeDeliveryService) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &c.Client)
+	ClearNextStepForUser(update, &c.Client, true)
 
 	const text = "<b>Ваш сервис доставки сейчас: %s</b>\nВыберите новый сервис доставки:"
 

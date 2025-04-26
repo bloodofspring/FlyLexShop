@@ -8,7 +8,7 @@ type About struct {
 }
 
 func (a About) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &a.Client)
+	ClearNextStepForUser(update, &a.Client, true)
 
 	return nil
 }

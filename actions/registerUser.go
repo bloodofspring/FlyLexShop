@@ -150,7 +150,7 @@ func RegisterPhoneNumberFunc(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 }
 
 func (r RegisterUser) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &r.Client)
+	ClearNextStepForUser(update, &r.Client, true)
 	
 	stepManager := controllers.GetNextStepManager()
 

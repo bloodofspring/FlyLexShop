@@ -16,7 +16,7 @@ type Shop struct {
 }
 
 func (s Shop) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &s.Client)
+	ClearNextStepForUser(update, &s.Client, true)
 
 	db := database.Connect()
 	defer db.Close()
@@ -90,6 +90,17 @@ func (s Shop) Run(update tgbotapi.Update) error {
 		text = "Выберите каталог"
 	}
 
+	userDb := models.TelegramUser{ID: update.CallbackQuery.From.ID}
+	err = userDb.Get(*db)
+	if err != nil {
+		return err
+	}
+
+	if userDb.IsAdmin {
+		addCatalogCallbackData := "addCatalog"
+		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "Добавить каталог", CallbackData: &addCatalogCallbackData}})
+	}
+
 	toMainMenuCallbackData := "mainMenu"
 	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "На главную", CallbackData: &toMainMenuCallbackData}})
 
@@ -117,7 +128,7 @@ type ViewCatalog struct {
 }
 
 func (v ViewCatalog) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &v.Client)
+	ClearNextStepForUser(update, &v.Client, true)
 	db := database.Connect()
 	defer db.Close()
 
