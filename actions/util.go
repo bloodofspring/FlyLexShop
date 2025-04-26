@@ -31,3 +31,24 @@ func ClearNextStepForUser(update tgbotapi.Update, client *tgbotapi.BotAPI, sendC
 		UserID: user.ID,
 	}, *client, sendCancelMessage)
 }
+
+func GetMessageAndType(update tgbotapi.Update) (*tgbotapi.Message, string) {
+	switch {
+	case update.CallbackQuery != nil:
+		message := update.CallbackQuery.Message
+		message.From = update.CallbackQuery.From
+		return message, "CallbackQuery"
+	case update.Message != nil:
+		return update.Message, "Message"
+	case update.EditedMessage != nil:
+		return update.EditedMessage, "EditedMessage"
+	default:
+		return nil, "Unknown"
+	}
+}
+
+func GetMessage(update tgbotapi.Update) *tgbotapi.Message {
+	message, _ := GetMessageAndType(update)
+	return message
+}
+

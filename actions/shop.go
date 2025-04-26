@@ -191,9 +191,11 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 
 		if userDb.IsAdmin {
 			removeCatalogCallbackData := fmt.Sprintf("editShop?a=removeCatalog&sessionId=%d", session.Id)
+			addProductCallbackData := fmt.Sprintf("editShop?a=createProduct&sessionId=%d", session.Id)
 			message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
 				InlineKeyboard: append(message.ReplyMarkup.InlineKeyboard, []tgbotapi.InlineKeyboardButton{
 					{Text: "Удалить каталог", CallbackData: &removeCatalogCallbackData},
+					{Text: "Добавить товар", CallbackData: &addProductCallbackData},
 				}),
 			}
 		}
@@ -278,6 +280,7 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 			changePriceCallbackData = fmt.Sprintf("editShop?a=changePrice&productId=%d", item.ID)
 			changeNameCallbackData = fmt.Sprintf("editShop?a=changeName&productId=%d", item.ID)
 			changeDescriptionCallbackData = fmt.Sprintf("editShop?a=changeDescription&productId=%d", item.ID)
+			addProductCallbackData = fmt.Sprintf("editShop?a=createProduct&sessionId=%d", session.Id)
 		)
 		keyboard = append(
 			keyboard,
@@ -292,6 +295,9 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 			[]tgbotapi.InlineKeyboardButton{
 				{Text: "Изменить название", CallbackData: &changeNameCallbackData},
 				{Text: "Изменить описание", CallbackData: &changeDescriptionCallbackData},
+			},
+			[]tgbotapi.InlineKeyboardButton{
+				{Text: "Добавить товар", CallbackData: &addProductCallbackData},
 			},
 		)
 	}
