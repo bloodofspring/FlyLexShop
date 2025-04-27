@@ -60,13 +60,25 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 		return err
 	}
 
-	cartDesc := "Список товаров:\n\n"
+	cartDesc := "Список товаров:\n"
 	totalPrice := 0
 	for _, item := range items {
 		cartDesc += fmt.Sprintf("|_ %s - %d₽\n", item.Name, item.Price)
 		totalPrice += item.Price
 	}
+
+	user := models.TelegramUser{ID: update.Message.From.ID}
+	err = user.Get(*db)
+	if err != nil {
+		return err
+	}
+
 	cartDesc += fmt.Sprintf("\nИтоговая сумма: %d₽", totalPrice)
+	cartDesc += "\n<b>Дополнительная информация:</b>"
+	cartDesc += "\n|_ Адрес доставки: " + user.DeliveryAddress
+	cartDesc += "\n|_ Сервис доставки: " + user.DeliveryService
+	cartDesc += "\n|_ Номер телефона: " + user.Phone
+	cartDesc += "\n|_ ФИО: " + user.FIO
 
 	chatID, err := strconv.ParseInt(adminChatID, 10, 64)
 	if err != nil {
@@ -74,6 +86,7 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 	}
 
 	photoMsg := tgbotapi.NewPhoto(chatID, tgbotapi.FileID(update.Message.Photo[len(update.Message.Photo)-1].FileID))
+	photoMsg.ParseMode = "HTML"
 	photoMsg.Caption = cartDesc
 
 	acceptData := "paymentVerdict?ok=true&userId=" + strconv.FormatInt(update.Message.From.ID, 10)

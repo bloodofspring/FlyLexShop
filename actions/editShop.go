@@ -42,7 +42,7 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 	fmt.Println("userDb.ShopSession: ", userDb.ShopSession)
 
 	if userDb.ShopSession == nil {
-		return Shop{Name: "shop?showCat=false", Client: e.Client}.Run(update)
+		return ViewCatalog{Name: "viewCatalog", Client: e.Client}.Run(update)
 	}
 
 	data := filters.ParseCallbackData(update.CallbackQuery.Data)
@@ -80,17 +80,17 @@ func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 		return err
 	}
 
-	client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
+	_, err = client.Request(tgbotapi.CallbackConfig{
+		CallbackQueryID: update.CallbackQuery.ID,
+		Text:            "Каталог удален!",
+		ShowAlert:       true,
+	})
 
-	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Каталог удален")
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("К списку каталогов", "shop?showCat=true"),
-		),
-	)
-	_, err = client.Send(msg)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return Shop{Name: "shop", Client: client}.Run(update)
 }
 
 func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession, db pg.DB) error {
@@ -98,8 +98,6 @@ func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 	if err != nil {
 		return err
 	}
-
-	client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
 
 	_, err = client.Request(tgbotapi.CallbackConfig{
 		CallbackQueryID: update.CallbackQuery.ID,
@@ -120,7 +118,7 @@ func baseForm(client tgbotapi.BotAPI, update tgbotapi.Update, params map[string]
 	msg := tgbotapi.NewMessage(GetMessage(update).Chat.ID, formText)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Отмена", "shop?showCat=false"),
+			tgbotapi.NewInlineKeyboardButtonData("Отмена", "toCat"),
 		),
 	)
 	_, err := client.Send(msg)
@@ -151,7 +149,7 @@ func baseFormSuccess(client tgbotapi.BotAPI, update tgbotapi.Update, successMess
 	msg := tgbotapi.NewMessage(GetMessage(update).Chat.ID, successMessage)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("К списку товаров", "shop?showCat=false"),
+			tgbotapi.NewInlineKeyboardButtonData("К списку товаров", "toCat"),
 		),
 	)
 	_, err := client.Send(msg)
@@ -163,7 +161,7 @@ func baseFormResend(client tgbotapi.BotAPI, update tgbotapi.Update, formText, Ca
 	msg := tgbotapi.NewMessage(GetMessage(update).Chat.ID, formText)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Отмена", "shop?showCat=false"),
+			tgbotapi.NewInlineKeyboardButtonData("Отмена", "toCat"),
 		),
 	)
 	_, err := client.Send(msg)
