@@ -19,7 +19,7 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "."
-          target: "/home/${{ secrets.SERVER_USERNAME }}/FlyLexShop"
+          target: "/home/${{ secrets.SERVER_USERNAME }}/bots/FlyLexShop"
           strip_components: 0
 
       - name: Execute update script
@@ -29,6 +29,6 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /home/${{ secrets.SERVER_USERNAME }}/FlyLexShop
+            cd /home/${{ secrets.SERVER_USERNAME }}/bots/FlyLexShop
             chmod +x scripts/update.sh
             ./scripts/update.sh 
