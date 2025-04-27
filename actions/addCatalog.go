@@ -10,8 +10,11 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// AddCatalog управляет процессом добавления нового каталога.
+// Name - имя команды.
+// Client - экземпляр Telegram бота.
 type AddCatalog struct {
-	Name string
+	Name   string
 	Client tgbotapi.BotAPI
 }
 
@@ -19,6 +22,7 @@ var (
 	cancelCallbackData = "cancel"
 )
 
+// Run отправляет запрос ввода названия каталога и регистрирует следующий шаг создания каталога.
 func (a AddCatalog) Run(update tgbotapi.Update) error {
 	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Введите название каталога")
 	msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
@@ -37,21 +41,23 @@ func (a AddCatalog) Run(update tgbotapi.Update) error {
 	}
 
 	stepAction := controllers.NextStepAction{
-		Func: CreateCatalog,
-		Params: make(map[string]interface{}),
-		CreatedAtTS: time.Now().Unix(),
+		Func:          CreateCatalog,
+		Params:        make(map[string]interface{}),
+		CreatedAtTS:   time.Now().Unix(),
 		CancelMessage: "Создание каталога отменено",
 	}
 
 	controllers.GetNextStepManager().RegisterNextStepAction(stepKey, stepAction)
-	
+
 	return nil
 }
 
+// GetName возвращает имя команды AddCatalog.
 func (a AddCatalog) GetName() string {
 	return a.Name
 }
 
+// CreateCatalog обрабатывает ввод названия каталога и сохраняет новый каталог в базе данных.
 func CreateCatalog(client tgbotapi.BotAPI, stepUpdate tgbotapi.Update, stepParams map[string]any) error {
 	if stepUpdate.Message.Text == "" {
 		msg := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "Введите название каталога")
@@ -71,9 +77,9 @@ func CreateCatalog(client tgbotapi.BotAPI, stepUpdate tgbotapi.Update, stepParam
 		}
 
 		stepAction := controllers.NextStepAction{
-			Func: CreateCatalog,
-			Params: make(map[string]interface{}),
-			CreatedAtTS: time.Now().Unix(),
+			Func:          CreateCatalog,
+			Params:        make(map[string]interface{}),
+			CreatedAtTS:   time.Now().Unix(),
 			CancelMessage: "Создание каталога отменено",
 		}
 

@@ -10,11 +10,17 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// ViewCart представляет собой структуру для просмотра корзины
+// Name - имя команды
+// Client - экземпляр Telegram бота
 type ViewCart struct {
 	Name   string
 	Client tgbotapi.BotAPI
 }
 
+// Run запускает отображение содержимого корзины
+// update - обновление от Telegram API
+// Возвращает ошибку, если что-то пошло не так
 func (v ViewCart) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &v.Client, true)
 
@@ -155,6 +161,7 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 	return nil
 }
 
+// GetName возвращает имя команды
 func (v ViewCart) GetName() string {
 	return v.Name
 }

@@ -10,11 +10,19 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// RegisterUser представляет собой структуру для обработки регистрации пользователя
+// Name - имя команды
+// Client - экземпляр Telegram бота
 type RegisterUser struct {
 	Name   string
 	Client tgbotapi.BotAPI
 }
 
+// RegistrationCompleted завершает процесс регистрации пользователя
+// client - экземпляр Telegram бота
+// update - обновление от Telegram API
+// stepParams - параметры шага регистрации
+// Возвращает ошибку, если что-то пошло не так
 func RegistrationCompleted(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	db := database.Connect()
 	defer db.Close()
@@ -46,6 +54,11 @@ func RegistrationCompleted(client tgbotapi.BotAPI, update tgbotapi.Update, stepP
 	return nil
 }
 
+// GetPVZFunc обрабатывает ввод номера телефона и запрашивает адрес ПВЗ
+// client - экземпляр Telegram бота
+// update - обновление от Telegram API
+// stepParams - параметры шага регистрации
+// Возвращает ошибку, если что-то пошло не так
 func GetPVZFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	regex := regexp.MustCompile(`^[0-9]{11}$`)
 	if !regex.MatchString(update.Message.Text) {
@@ -110,6 +123,11 @@ func GetPVZFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[s
 	return nil
 }
 
+// RegisterPhoneNumberFunc обрабатывает ввод ФИО и запрашивает номер телефона
+// client - экземпляр Telegram бота
+// update - обновление от Telegram API
+// stepParams - параметры шага регистрации
+// Возвращает ошибку, если что-то пошло не так
 func RegisterPhoneNumberFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	db := database.Connect()
 	defer db.Close()
@@ -149,9 +167,12 @@ func RegisterPhoneNumberFunc(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 	return nil
 }
 
+// Run запускает процесс регистрации пользователя
+// update - обновление от Telegram API
+// Возвращает ошибку, если что-то пошло не так
 func (r RegisterUser) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &r.Client, true)
-	
+
 	stepManager := controllers.GetNextStepManager()
 
 	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Введите ФИО")
@@ -175,6 +196,7 @@ func (r RegisterUser) Run(update tgbotapi.Update) error {
 	return nil
 }
 
+// GetName возвращает имя команды
 func (r RegisterUser) GetName() string {
 	return r.Name
 }

@@ -13,9 +13,15 @@ import (
 )
 
 const (
+	// processOrderPageText - шаблон текста для страницы оплаты заказа
 	processOrderPageText = "<b>Итог:</b> %d\n\nОплата осуществляется переводом по номеру карты или телефона:\n|_<b>Номер карты:</b> %s\n|_<b>Номер телефона:</b> %s\n|_<b>Банк:</b> %s\n\n<b>!!!После оплаты пришлите боту чек на проверку сообщением ниже!!!</b>"
 )
 
+// RegisterPaymentPhoto обрабатывает фотографию чека об оплате
+// client - экземпляр Telegram бота
+// update - обновление от Telegram API
+// stepParams - параметры шага обработки заказа
+// Возвращает ошибку, если что-то пошло не так
 func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	if update.Message == nil {
 		return nil
@@ -33,9 +39,9 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 			UserID: update.Message.From.ID,
 		}
 		stepAction := controllers.NextStepAction{
-			Func:        RegisterPaymentPhoto,
-			Params:      make(map[string]any),
-			CreatedAtTS: time.Now().Unix(),
+			Func:          RegisterPaymentPhoto,
+			Params:        make(map[string]any),
+			CreatedAtTS:   time.Now().Unix(),
 			CancelMessage: "Оформление заказа прервано! Вы можете совершить покупку позже в этом же разделе.",
 		}
 
@@ -111,11 +117,17 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 	return err
 }
 
+// ProcessOrder представляет собой структуру для обработки заказа
+// Name - имя команды
+// Client - экземпляр Telegram бота
 type ProcessOrder struct {
-	Name string
+	Name   string
 	Client tgbotapi.BotAPI
 }
 
+// Run запускает процесс обработки заказа
+// update - обновление от Telegram API
+// Возвращает ошибку, если что-то пошло не так
 func (p ProcessOrder) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &p.Client, true)
 	db := database.Connect()
@@ -149,9 +161,9 @@ func (p ProcessOrder) Run(update tgbotapi.Update) error {
 		UserID: update.CallbackQuery.From.ID,
 	}
 	stepAction := controllers.NextStepAction{
-		Func:        RegisterPaymentPhoto,
-		Params:      make(map[string]any),
-		CreatedAtTS: time.Now().Unix(),
+		Func:          RegisterPaymentPhoto,
+		Params:        make(map[string]any),
+		CreatedAtTS:   time.Now().Unix(),
 		CancelMessage: "Оформление заказа прервано! Вы можете совершить покупку позже в этом же разделе.",
 	}
 
@@ -160,6 +172,7 @@ func (p ProcessOrder) Run(update tgbotapi.Update) error {
 	return nil
 }
 
+// GetName возвращает имя команды
 func (p ProcessOrder) GetName() string {
 	return p.Name
 }

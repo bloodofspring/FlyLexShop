@@ -10,11 +10,17 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// Shop представляет собой структуру для работы с магазином
+// Name - имя команды
+// Client - экземпляр Telegram бота
 type Shop struct {
 	Name   string
 	Client tgbotapi.BotAPI
 }
 
+// Run запускает отображение каталогов магазина
+// update - обновление от Telegram API
+// Возвращает ошибку, если что-то пошло не так
 func (s Shop) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &s.Client, true)
 
@@ -119,15 +125,22 @@ func (s Shop) Run(update tgbotapi.Update) error {
 	return err
 }
 
+// GetName возвращает имя команды
 func (s Shop) GetName() string {
 	return s.Name
 }
 
+// ViewCatalog представляет собой структуру для просмотра каталога
+// Name - имя команды
+// Client - экземпляр Telegram бота
 type ViewCatalog struct {
 	Name   string
 	Client tgbotapi.BotAPI
 }
 
+// Run запускает отображение содержимого каталога
+// update - обновление от Telegram API
+// Возвращает ошибку, если что-то пошло не так
 func (v ViewCatalog) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &v.Client, true)
 	db := database.Connect()
@@ -367,6 +380,7 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 	return nil
 }
 
+// GetName возвращает имя команды
 func (v ViewCatalog) GetName() string {
 	return v.Name
 }

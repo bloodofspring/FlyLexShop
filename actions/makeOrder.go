@@ -9,19 +9,28 @@ import (
 )
 
 const (
+	// makeOrderPageText - шаблон текста для страницы оформления заказа
 	makeOrderPageText = "<b>Итог:</b>\nОбщая стоимость товаров: %dр.\n\n<b>Проверьте корректность ваших данных:</b>\n\n|_ Номер телефона: %s\n|_ ФИО: %s\n|_ Адрес ПВЗ: %s\n|_ Сервис доставки: %s"
 )
 
 var (
+	// processOrderCallbackData - callback data для обработки заказа
 	processOrderCallbackData = "processOrder"
+	// changeDataCallbackData - callback data для изменения данных пользователя
 	changeDataCallbackData = "profileSettings"
 )
 
+// MakeOrder представляет собой структуру для оформления заказа
+// Name - имя команды
+// Client - экземпляр Telegram бота
 type MakeOrder struct {
 	Name   string
 	Client tgbotapi.BotAPI
 }
 
+// Run запускает процесс оформления заказа
+// update - обновление от Telegram API
+// Возвращает ошибку, если что-то пошло не так
 func (m MakeOrder) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &m.Client, true)
 	db := database.Connect()
@@ -54,6 +63,7 @@ func (m MakeOrder) Run(update tgbotapi.Update) error {
 	return err
 }
 
+// GetName возвращает имя команды
 func (m MakeOrder) GetName() string {
 	return m.Name
 }

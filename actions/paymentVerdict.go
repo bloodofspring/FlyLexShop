@@ -10,15 +10,23 @@ import (
 )
 
 const (
+	// paymentAcceptedMessageText - сообщение об успешном принятии оплаты
 	paymentAcceptedMessageText = "Администрация приняла ваш чек! Ожидайте доставку в указанный пункт выдачи."
+	// paymentRejectedMessageText - сообщение об отклонении оплаты
 	paymentRejectedMessageText = "Администрация отклонила ваш чек! Попробуйте ещё раз."
 )
 
+// PaymentVerdict представляет собой структуру для обработки результатов проверки оплаты
+// Name - имя команды
+// Client - экземпляр Telegram бота
 type PaymentVerdict struct {
 	Name   string
 	Client tgbotapi.BotAPI
 }
 
+// Run обрабатывает результат проверки оплаты администратором
+// update - обновление от Telegram API
+// Возвращает ошибку, если что-то пошло не так
 func (p PaymentVerdict) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &p.Client, true)
 
@@ -38,7 +46,7 @@ func (p PaymentVerdict) Run(update tgbotapi.Update) error {
 			return err
 		}
 
-		_, err = p.Client.Send(tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, update.CallbackQuery.Message.Caption + "\n\nОплата принята✅"))
+		_, err = p.Client.Send(tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, update.CallbackQuery.Message.Caption+"\n\nОплата принята✅"))
 		if err != nil {
 			return err
 		}
@@ -60,7 +68,7 @@ func (p PaymentVerdict) Run(update tgbotapi.Update) error {
 		return err
 	}
 
-	_, err = p.Client.Send(tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, update.CallbackQuery.Message.Caption + "\n\nОплата отклонена❌"))
+	_, err = p.Client.Send(tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, update.CallbackQuery.Message.Caption+"\n\nОплата отклонена❌"))
 	if err != nil {
 		return err
 	}
@@ -68,6 +76,7 @@ func (p PaymentVerdict) Run(update tgbotapi.Update) error {
 	return nil
 }
 
+// GetName возвращает имя команды
 func (p PaymentVerdict) GetName() string {
 	return p.Name
 }

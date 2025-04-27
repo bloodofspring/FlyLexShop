@@ -2,12 +2,17 @@ package actions
 
 import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
-
+// MainMenu представляет собой структуру для отображения главного меню
+// Name - имя команды
+// Client - экземпляр Telegram бота
 type MainMenu struct {
 	Name   string
 	Client tgbotapi.BotAPI
 }
 
+// Run запускает отображение главного меню
+// update - обновление от Telegram API
+// Возвращает ошибку, если что-то пошло не так
 func (m MainMenu) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &m.Client, true)
 	const text = "<b>Главное меню</b>\nВыберите опцию:"
@@ -45,6 +50,7 @@ func (m MainMenu) Run(update tgbotapi.Update) error {
 	return err
 }
 
+// GetName возвращает имя команды
 func (m MainMenu) GetName() string {
 	return m.Name
 }
