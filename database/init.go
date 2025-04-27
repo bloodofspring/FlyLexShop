@@ -13,8 +13,8 @@ func Connect() *pg.DB {
 	db := pg.Connect(&pg.Options{
 		Addr:     "localhost:5432",
 		User:     "postgres",
-		Password: envFile["db_password"],
-		Database: envFile["db_name"], // bigBrotherBotDb
+		Password: envFile["DB_PASSWORD"],
+		Database: envFile["DB_NAME"], // bigBrotherBotDb
 	})
 
 	return db

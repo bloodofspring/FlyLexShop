@@ -1,6 +1,6 @@
 .git
 .gitignore
-.env
+# .env
 *.log
 *.swp
 *.swo

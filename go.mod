@@ -1,6 +1,8 @@
 module main
 
-go 1.23.3
+go 1.23.0
+
+toolchain go1.23.3
 
 require (
 	github.com/go-pg/pg/v10 v10.14.0
