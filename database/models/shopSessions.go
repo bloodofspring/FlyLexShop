@@ -1,15 +1,18 @@
 package models
 
-
 type ShopViewSession struct {
-	Id int
-	UserId int64
-	ChatId int64
+	ID     int
+	UserID int64
+	User   *TelegramUser `pg:"rel:has-one,fk:user_id"`
+	ChatID int64
 
 	CreatedAt int64 `pg:",default:extract(epoch from now())"`
 	UpdatedAt int64 `pg:",default:extract(epoch from now())"`
 
-	CatId int `pg:",default:null"`
-	ProductAtId int `pg:",default:null"`
-	PageNo int `pg:",default:null"`
+	CatalogID   int      `pg:",fk:catalog_id,unique"`
+	Catalog     *Catalog `pg:"rel:belongs-to,fk:catalog_id"`
+	ProductAtID int
+	ProductAt   *Product `pg:"rel:has-one,fk:product_at_id"`
+
+	Offest int `pg:",default:0"`
 }

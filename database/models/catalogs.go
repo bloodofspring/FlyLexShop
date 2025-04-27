@@ -1,30 +1,38 @@
 package models
 
-import "github.com/go-pg/pg/v10"
+import (
+	"github.com/go-pg/pg/v10"
+)
 
 type Catalog struct {
-	ID int `json:"id"`
+	ID   int    `json:"id"`
 	Name string `json:"name"`
+
+	Products    []*Product       `pg:"rel:has-many,join_fk:catalog_id"`
+	ShopSessions []*ShopViewSession `pg:"rel:has-many,join_fk:catalog_id"`
 }
 
-func (c *Catalog) GetProductCount(db pg.DB) (int, error) {
-	products := []Product{}
-	err := db.Model(&products).Where("catalog_id = ?", c.ID).Select()
+func (c *Catalog) GetProductCount(db *pg.DB) (int, error) {
+	count, err := db.Model(&[]Product{}).
+		Where("catalog_id = ?", c.ID).
+		Count()
 	if err != nil {
 		return 0, err
 	}
 
-	return len(products), nil
+	return count, nil
 }
 
 type Product struct {
-	ID int `json:"id"`
+	ID          int    `json:"id"`
 	ImageFileID string `json:"image_file_id"`
-	Name string `json:"name"`
+	Name        string `json:"name"`
 	Description string `json:"description"`
-	Price int `json:"price"`
-	CatalogID int `json:"catalog_id"`
-	Catalog *Catalog `pg:"rel:has-one"`
+	Price       int    `json:"price"`
+	CatalogID   int    `json:"catalog_id"`
+
+	Catalog      *Catalog           `pg:"rel:has-one,fk:catalog_id"`
+	ShopSessions []*ShopViewSession `pg:"rel:has-many,join_fk:product_at_id"`
 }
 
 func (p *Product) InUserCart(userId int64, db pg.DB) (bool, error) {

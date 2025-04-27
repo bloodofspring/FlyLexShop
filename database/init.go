@@ -34,7 +34,7 @@ func InitDb() error {
 
 	for _, model := range models {
 		err := db.Model(model).CreateTable(&orm.CreateTableOptions{
-			Temp:        false, // Временные таблицы
+			Temp:        false,
 			IfNotExists: true,
 		})
 		if err != nil {

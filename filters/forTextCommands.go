@@ -22,7 +22,7 @@ var ToMainMenuFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 	defer db.Close()
 
 	user := models.TelegramUser{ID: update.Message.From.ID}
-	_ = user.GetOrCreate(update.Message.From, *db)
+	err := user.Get(*db)
 
-	return update.Message.Command() == "start" && user.IsAuthorized
+	return update.Message.Command() == "start" && user.IsAuthorized && err == nil
 }
