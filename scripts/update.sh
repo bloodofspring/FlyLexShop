@@ -3,7 +3,7 @@
 set -e
 
 echo "Остановка текущих контейнеров..."
-docker-compose down
+docker-compose stop
 
 echo "Обновление образов..."
 docker-compose build
