@@ -80,13 +80,6 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 			data := filters.ParseCallbackData(update.CallbackQuery.Data)
 			session := *userDb.ShopSession
 
-			err = db.Model(session.Catalog).
-				Where("id = ?", session.CatalogID).
-				Select()
-			if err != nil {
-				return
-			}
-
 			e.mu.Lock()
 			switch data["a"] {
 			case "removeCatalog":
@@ -98,7 +91,7 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 			case "changePrice":
 				err = changePrice(update, e.Client, session)
 			case "changeName":
-				err = changeProductName(update, e.Client, session)
+				err = changeName(update, e.Client, session)
 			case "changeDescription":
 				changeDescription(update, e.Client, session)
 			case "createProduct":
@@ -147,7 +140,7 @@ func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 		return err
 	}
 
-	return NewShopHandler(client).Run(update)
+	return Shop{Name: "shop", Client: client}.Run(update)
 }
 
 // removeProduct удаляет текущий товар и возвращает пользователя к просмотру каталога.
@@ -167,17 +160,17 @@ func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 		return err
 	}
 
-	return NewViewCatalogHandler(client).Run(update)
+	return ViewCatalog{Name: "viewCatalog", Client: client}.Run(update)
 }
 
 // baseForm отображает форму ввода с кнопкой отмены и регистрирует следующий шаг.
-func baseForm(client tgbotapi.BotAPI, update tgbotapi.Update, params map[string]any, formText, CancelMessage, cancelCallbackData string, formHandler controllers.NextStepFunc) error {
+func baseForm(client tgbotapi.BotAPI, update tgbotapi.Update, params map[string]any, formText, CancelMessage string, formHandler controllers.NextStepFunc) error {
 	client.Send(tgbotapi.NewDeleteMessage(GetMessage(update).Chat.ID, GetMessage(update).MessageID))
 
 	msg := tgbotapi.NewMessage(GetMessage(update).Chat.ID, formText)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Отмена", cancelCallbackData),
+			tgbotapi.NewInlineKeyboardButtonData("Отмена", "toCat"),
 		),
 	)
 	_, err := client.Send(msg)
@@ -203,13 +196,13 @@ func baseForm(client tgbotapi.BotAPI, update tgbotapi.Update, params map[string]
 }
 
 // baseFormSuccess очищает следующий шаг и показывает сообщение об успехе.
-func baseFormSuccess(client tgbotapi.BotAPI, update tgbotapi.Update, successMessage, successCallbackData, successButtonText string) error {
+func baseFormSuccess(client tgbotapi.BotAPI, update tgbotapi.Update, successMessage string) error {
 	ClearNextStepForUser(update, &client, false)
 
 	msg := tgbotapi.NewMessage(GetMessage(update).Chat.ID, successMessage)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(successButtonText, successCallbackData),
+			tgbotapi.NewInlineKeyboardButtonData("К списку товаров", "toCat"),
 		),
 	)
 	_, err := client.Send(msg)
@@ -218,11 +211,11 @@ func baseFormSuccess(client tgbotapi.BotAPI, update tgbotapi.Update, successMess
 }
 
 // baseFormResend повторно отображает форму ввода при ошибке.
-func baseFormResend(client tgbotapi.BotAPI, update tgbotapi.Update, formText, CancelMessage, cancelCallbackData string, stepParams map[string]any, formHandler controllers.NextStepFunc) error {
+func baseFormResend(client tgbotapi.BotAPI, update tgbotapi.Update, formText, CancelMessage string, stepParams map[string]any, formHandler controllers.NextStepFunc) error {
 	msg := tgbotapi.NewMessage(GetMessage(update).Chat.ID, formText)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Отмена", cancelCallbackData),
+			tgbotapi.NewInlineKeyboardButtonData("Отмена", "toCat"),
 		),
 	)
 	_, err := client.Send(msg)
@@ -251,7 +244,7 @@ func baseFormResend(client tgbotapi.BotAPI, update tgbotapi.Update, formText, Ca
 func changePhoto(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
 	return baseForm(client, update, map[string]any{
 		"session": session,
-	}, "Отправьте ниже новое фото товара", "Фото не обновлено", "toCat", changePhotoHandler)
+	}, "Отправьте ниже новое фото товара", "Фото не обновлено", changePhotoHandler)
 }
 
 // changePhotoHandler обрабатывает загрузку нового фото и сохраняет его.
@@ -261,7 +254,7 @@ func changePhotoHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 
 	photo := update.Message.Photo
 	if len(photo) == 0 {
-		return baseFormResend(client, update, "Отправьте ниже новое фото товара", "Фото не обновлено", "toCat", stepParams, changePhotoHandler)
+		return baseFormResend(client, update, "Отправьте ниже новое фото товара", "Фото не обновлено", stepParams, changePhotoHandler)
 	}
 
 	photoID := photo[len(photo)-1].FileID
@@ -274,14 +267,14 @@ func changePhotoHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 		return err
 	}
 
-	return baseFormSuccess(client, update, "Фото обновлено!", "toCat", "К списку товаров")
+	return baseFormSuccess(client, update, "Фото обновлено!")
 }
 
 // changePrice инициирует изменение цены товара.
 func changePrice(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
 	return baseForm(client, update, map[string]any{
 		"session": session,
-	}, "Отправьте ниже новую цену товара", "Цена не обновлена", "toCat", changePriceHandler)
+	}, "Отправьте ниже новую цену товара", "Цена не обновлена", changePriceHandler)
 }
 
 // changePriceHandler обрабатывает ввод новой цены и сохраняет её.
@@ -294,7 +287,7 @@ func changePriceHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 	priceInt, err := strconv.Atoi(price)
 
 	if err != nil {
-		return baseFormResend(client, update, "Отправьте ниже новую цену товара (целое число!)", "Цена не обновлена", "toCat", stepParams, changePriceHandler)
+		return baseFormResend(client, update, "Отправьте ниже новую цену товара (целое число!)", "Цена не обновлена", stepParams, changePriceHandler)
 	}
 
 	db := database.Connect()
@@ -305,31 +298,31 @@ func changePriceHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 		return err
 	}
 
-	return baseFormSuccess(client, update, "Цена обновлена!", "toCat", "К списку товаров")
+	return baseFormSuccess(client, update, "Цена обновлена!")
 }
 
-// changeProductName инициирует изменение названия товара.
+// changeName инициирует изменение названия товара.
 // update - обновление от Telegram API.
 // client - экземпляр Telegram бота.
 // session - текущая сессия просмотра магазина.
-func changeProductName(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
+func changeName(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
 	return baseForm(client, update, map[string]any{
 		"session": session,
-	}, "Отправьте ниже новое название товара", "Название не обновлено", "toCat", changeProductNameHandler)
+	}, "Отправьте ниже новое название товара", "Название не обновлено", changeNameHandler)
 }
 
-// changeProductNameHandler обрабатывает ввод нового названия товара и сохраняет его.
+// changeNameHandler обрабатывает ввод нового названия товара и сохраняет его.
 // client - экземпляр Telegram бота.
 // update - обновление от Telegram API.
 // stepParams - параметры шага, содержащие session.
-func changeProductNameHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
+func changeNameHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
 
 	name := update.Message.Text
 
 	if name == "" {
-		return baseFormResend(client, update, "Название не может быть пустым", "Название не обновлено", "toCat", stepParams, changeProductNameHandler)
+		return baseFormResend(client, update, "Название не может быть пустым", "Название не обновлено", stepParams, changeNameHandler)
 	}
 
 	db := database.Connect()
@@ -340,7 +333,7 @@ func changeProductNameHandler(client tgbotapi.BotAPI, update tgbotapi.Update, st
 		return err
 	}
 
-	return baseFormSuccess(client, update, "Название обновлено!", "toCat", "К списку товаров")
+	return baseFormSuccess(client, update, "Название обновлено!")
 }
 
 // changeDescription инициирует изменение описания товара.
@@ -350,7 +343,7 @@ func changeProductNameHandler(client tgbotapi.BotAPI, update tgbotapi.Update, st
 func changeDescription(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
 	return baseForm(client, update, map[string]any{
 		"session": session,
-	}, "Отправьте ниже новое описание товара", "Описание не обновлено", "toCat", changeDescriptionHandler)
+	}, "Отправьте ниже новое описание товара", "Описание не обновлено", changeDescriptionHandler)
 }
 
 // changeDescriptionHandler обрабатывает ввод нового описания товара и сохраняет его.
@@ -364,7 +357,7 @@ func changeDescriptionHandler(client tgbotapi.BotAPI, update tgbotapi.Update, st
 	description := update.Message.Text
 
 	if description == "" {
-		return baseFormResend(client, update, "Описание не может быть пустым", "Описание не обновлено", "toCat", stepParams, changeDescriptionHandler)
+		return baseFormResend(client, update, "Описание не может быть пустым", "Описание не обновлено", stepParams, changeDescriptionHandler)
 	}
 
 	db := database.Connect()
@@ -375,7 +368,7 @@ func changeDescriptionHandler(client tgbotapi.BotAPI, update tgbotapi.Update, st
 		return err
 	}
 
-	return baseFormSuccess(client, update, "Описание обновлено!", "toCat", "К списку товаров")
+	return baseFormSuccess(client, update, "Описание обновлено!")
 }
 
 // createProduct инициирует создание нового товара.
@@ -385,7 +378,7 @@ func changeDescriptionHandler(client tgbotapi.BotAPI, update tgbotapi.Update, st
 func createProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
 	return baseForm(client, update, map[string]any{
 		"session": session,
-	}, "Отправьте ниже название товара", "Товар не создан", "toCat", registerNewProductName)
+	}, "Отправьте ниже название товара", "Товар не создан", registerNewProductName)
 }
 
 // registerNewProductName обрабатывает ввод названия нового товара при создании.
@@ -399,11 +392,11 @@ func registerNewProductName(client tgbotapi.BotAPI, update tgbotapi.Update, step
 	name := update.Message.Text
 
 	if name == "" {
-		return baseFormResend(client, update, "Название не может быть пустым", "Товар не создан", "toCat", stepParams, registerNewProductName)
+		return baseFormResend(client, update, "Название не может быть пустым", "Товар не создан", stepParams, registerNewProductName)
 	}
 
 	stepParams["productName"] = name
-	return baseForm(client, update, stepParams, "Отправьте ниже цену товара", "Товар не создан", "toCat", registerNewProductPrice)
+	return baseForm(client, update, stepParams, "Отправьте ниже цену товара", "Товар не создан", registerNewProductPrice)
 }
 
 // registerNewProductPrice обрабатывает ввод цены нового товара при создании.
@@ -418,11 +411,11 @@ func registerNewProductPrice(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 
 	priceInt, err := strconv.Atoi(price)
 	if err != nil {
-		return baseFormResend(client, update, "Цена должна быть числом", "Товар не создан", "toCat", stepParams, registerNewProductPrice)
+		return baseFormResend(client, update, "Цена должна быть числом", "Товар не создан", stepParams, registerNewProductPrice)
 	}
 
 	stepParams["productPrice"] = priceInt
-	return baseForm(client, update, stepParams, "Отправьте ниже описание товара", "Товар не создан", "toCat", registerNewProductDescription)
+	return baseForm(client, update, stepParams, "Отправьте ниже описание товара", "Товар не создан", registerNewProductDescription)
 }
 
 // registerNewProductDescription обрабатывает ввод описания нового товара при создании.
@@ -436,11 +429,11 @@ func registerNewProductDescription(client tgbotapi.BotAPI, update tgbotapi.Updat
 	description := update.Message.Text
 
 	if description == "" {
-		return baseFormResend(client, update, "Описание не может быть пустым", "Товар не создан", "toCat", stepParams, registerNewProductDescription)
+		return baseFormResend(client, update, "Описание не может быть пустым", "Товар не создан", stepParams, registerNewProductDescription)
 	}
 
 	stepParams["productDescription"] = description
-	return baseForm(client, update, stepParams, "Отправьте ниже фото товара", "Товар не создан", "toCat", registerNewProductPhoto)
+	return baseForm(client, update, stepParams, "Отправьте ниже фото товара", "Товар не создан", registerNewProductPhoto)
 }
 
 // registerNewProductPhoto обрабатывает загрузку фото нового товара и сохраняет его.
@@ -452,7 +445,7 @@ func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
 	photo := update.Message.Photo
 	if len(photo) == 0 {
-		return baseFormResend(client, update, "Отправьте ниже фото товара", "Товар не создан", "toCat", stepParams, registerNewProductPhoto)
+		return baseFormResend(client, update, "Отправьте ниже фото товара", "Товар не создан", stepParams, registerNewProductPhoto)
 	}
 
 	photoID := photo[len(photo)-1].FileID
@@ -471,7 +464,7 @@ func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 		return err
 	}
 
-	return baseFormSuccess(client, update, "Товар успешно создан!", "toCat", "К списку товаров")
+	return baseFormSuccess(client, update, "Товар успешно создан!")
 }
 
 // GetName возвращает имя команды EditShop.

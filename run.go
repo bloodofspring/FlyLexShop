@@ -53,8 +53,12 @@ func getBotActions(bot tgbotapi.BotAPI) handlers.ActiveHandlers {
 		// ToDo: Разработать когда будет обновлено тз
 		handlers.CallbackQueryHandler.Product(actions.About{Name: "about", Client: bot}, []handlers.Filter{filters.AboutFilter}),
 
-		handlers.CallbackQueryHandler.Product(actions.NewProfileSettingsHandler(bot), []handlers.Filter{filters.ProfileSettingsFilter}),
-		handlers.CallbackQueryHandler.Product(actions.NewChangeDeliveryServiceHandler(bot), []handlers.Filter{filters.ChangeDeliveryServiceFilter}),
+		// ToDo: redo this shit
+		handlers.CallbackQueryHandler.Product(actions.ProfileSettings{Name: "profile-settings", Client: bot}, []handlers.Filter{filters.ProfileSettingsFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ChangeName{Name: "change-name", Client: bot}, []handlers.Filter{filters.ChangeNameFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ChangePhone{Name: "change-phone", Client: bot}, []handlers.Filter{filters.ChangePhoneFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ChangeDeliveryAddress{Name: "change-delivery-address", Client: bot}, []handlers.Filter{filters.ChangeDeliveryAddressFilter}),
+		handlers.CallbackQueryHandler.Product(actions.ChangeDeliveryService{Name: "change-delivery-service", Client: bot}, []handlers.Filter{filters.ChangeDeliveryServiceFilter}),
 
 		handlers.CallbackQueryHandler.Product(actions.NewShopHandler(bot), []handlers.Filter{filters.ShopFilter}),
 		handlers.CallbackQueryHandler.Product(actions.NewViewCatalogHandler(bot), []handlers.Filter{filters.ViewCatalogFilter}),
@@ -86,8 +90,6 @@ func main() {
 	log := logger.GetLogger()
 	if debug {
 		log.SetLevel(logger.Debug)
-	} else {
-		log.SetLevel(logger.Info)
 	}
 
 	metrics := metrics.GetMetrics()

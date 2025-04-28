@@ -23,7 +23,7 @@ var ViewCartFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 }
 
 var ProfileSettingsFilter = func(update tgbotapi.Update, client tgbotapi.BotAPI) bool {
-	if strings.HasPrefix(update.CallbackQuery.Data, "profileSettings") {
+	if update.CallbackQuery.Data == "profileSettings" {
 		controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{ChatID: update.CallbackQuery.Message.Chat.ID, UserID: update.CallbackQuery.From.ID}, client, true)
 		return true
 	}
