@@ -1,10 +1,12 @@
 package actions
 
 import (
+	"context"
 	"main/controllers"
 	"main/database"
 	"main/database/models"
 	"regexp"
+	"sync"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -16,6 +18,15 @@ import (
 type RegisterUser struct {
 	Name   string
 	Client tgbotapi.BotAPI
+	mu     *sync.Mutex
+}
+
+func NewRegisterUserHandler(client tgbotapi.BotAPI) *RegisterUser {
+	return &RegisterUser{
+		Name:   "registerUser",
+		Client: client,
+		mu:     &sync.Mutex{},
+	}
 }
 
 // RegistrationCompleted завершает процесс регистрации пользователя
@@ -24,34 +35,63 @@ type RegisterUser struct {
 // stepParams - параметры шага регистрации
 // Возвращает ошибку, если что-то пошло не так
 func RegistrationCompleted(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
-	db := database.Connect()
-	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	user := models.TelegramUser{ID: update.Message.From.ID}
-	_ = user.GetOrCreate(update.Message.From, *db)
+	var wg sync.WaitGroup
+	mu := sync.Mutex{}
+	var err error
 
-	user.DeliveryAddress = update.Message.Text
-	user.IsAuthorized = true
-	_, err := db.Model(&user).WherePK().Update()
-	if err != nil {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			db := database.Connect()
+			defer db.Close()
+
+			user := models.TelegramUser{ID: update.Message.From.ID}
+			_ = user.GetOrCreate(update.Message.From, *db)
+
+			user.DeliveryAddress = update.Message.Text
+			user.IsAuthorized = true
+			_, err = db.Model(&user).WherePK().Update()
+			if err != nil {
+				return
+			}
+
+			message := tgbotapi.NewMessage(update.Message.Chat.ID, "Вы успешно зарегистрированы! Нажмите «Главное меню» чтобы продолжить.")
+
+			callbackData := "mainMenu"
+			message.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
+				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
+					{{Text: "Главное меню", CallbackData: &callbackData}},
+				},
+			}
+
+			mu.Lock()
+			_, err = client.Send(message)
+			mu.Unlock()
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
 		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-
-	message := tgbotapi.NewMessage(update.Message.Chat.ID, "Вы успешно зарегистрированы! Нажмите «Главное меню» чтобы продолжить.")
-
-	callbackData := "mainMenu"
-	message.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
-		InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
-			{{Text: "Главное меню", CallbackData: &callbackData}},
-		},
-	}
-
-	_, err = client.Send(message)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // GetPVZFunc обрабатывает ввод номера телефона и запрашивает адрес ПВЗ
@@ -60,67 +100,99 @@ func RegistrationCompleted(client tgbotapi.BotAPI, update tgbotapi.Update, stepP
 // stepParams - параметры шага регистрации
 // Возвращает ошибку, если что-то пошло не так
 func GetPVZFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
-	regex := regexp.MustCompile(`^[0-9]{11}$`)
-	if !regex.MatchString(update.Message.Text) {
-		message := tgbotapi.NewMessage(update.Message.Chat.ID, "Неверный формат ввода!\n\nВведите номер телефона в формате 89991234567:")
-		_, err := client.Send(message)
-		if err != nil {
-			return err
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-		stepManager := controllers.GetNextStepManager()
+    var wg sync.WaitGroup
+	mu := sync.Mutex{}
+    var err error
 
-		stepKey := controllers.NextStepKey{
-			ChatID: update.Message.Chat.ID,
-			UserID: update.Message.From.ID,
-		}
-		stepAction := controllers.NextStepAction{
-			Func:        GetPVZFunc,
-			Params:      make(map[string]any),
-			CreatedAtTS: time.Now().Unix(),
-		}
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        select {
+        case <-ctx.Done():
+            return
+        default:
+			regex := regexp.MustCompile(`^[0-9]{11}$`)
+			if !regex.MatchString(update.Message.Text) {
+				message := tgbotapi.NewMessage(update.Message.Chat.ID, "Неверный формат ввода!\n\nВведите номер телефона в формате 89991234567:")
+				
+				mu.Lock()
+				_, err = client.Send(message)
+				mu.Unlock()
+				if err != nil {
+					return
+				}
+				
+				stepKey := controllers.NextStepKey{
+					ChatID: update.Message.Chat.ID,
+					UserID: update.Message.From.ID,
+				}
+				stepAction := controllers.NextStepAction{
+					Func:        GetPVZFunc,
+					Params:      make(map[string]any),
+					CreatedAtTS: time.Now().Unix(),
+				}
+		
+				mu.Lock()
+				controllers.GetNextStepManager().RegisterNextStepAction(stepKey, stepAction)
+				mu.Unlock()
+		
+				return
+			}
+		
+			db := database.Connect()
+			defer db.Close()
+		
+			message := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите адрес ближайшего ПВЗ для дальнейшего оформления заказов (CDEK или Яндекс доставка)")
+			mu.Lock()
+			_, err = client.Send(message)
+			mu.Unlock()
+			if err != nil {
+				return
+			}
+		
+			user := models.TelegramUser{ID: update.Message.From.ID}
+			err = user.GetOrCreate(update.Message.From, *db)
+			if err != nil {
+				return
+			}
+		
+			user.Phone = update.Message.Text
+			_, err = db.Model(&user).WherePK().Update()
+			if err != nil {
+				return
+			}
+				
+			stepKey := controllers.NextStepKey{
+				ChatID: update.Message.Chat.ID,
+				UserID: update.Message.From.ID,
+			}
+			stepAction := controllers.NextStepAction{
+				Func:        RegistrationCompleted,
+				Params:      make(map[string]any),
+				CreatedAtTS: time.Now().Unix(),
+			}
+		
+			mu.Lock()
+			controllers.GetNextStepManager().RegisterNextStepAction(stepKey, stepAction)
+			mu.Unlock()
+        }
+    }()
 
-		stepManager.RegisterNextStepAction(stepKey, stepAction)
+    done := make(chan struct{})
+    go func() {
+        wg.Wait()
+        close(done)
+    }()
 
-		return nil
-	}
-
-	db := database.Connect()
-	defer db.Close()
-
-	message := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите адрес ближайшего ПВЗ для дальнейшего оформления заказов (CDEK или Яндекс доставка)")
-	_, err := client.Send(message)
-	if err != nil {
-		return err
-	}
-
-	user := models.TelegramUser{ID: update.Message.From.ID}
-	err = user.GetOrCreate(update.Message.From, *db)
-	if err != nil {
-		return err
-	}
-
-	user.Phone = update.Message.Text
-	_, err = db.Model(&user).WherePK().Update()
-	if err != nil {
-		return err
-	}
-
-	stepManager := controllers.GetNextStepManager()
-
-	stepKey := controllers.NextStepKey{
-		ChatID: update.Message.Chat.ID,
-		UserID: update.Message.From.ID,
-	}
-	stepAction := controllers.NextStepAction{
-		Func:        RegistrationCompleted,
-		Params:      make(map[string]any),
-		CreatedAtTS: time.Now().Unix(),
-	}
-
-	stepManager.RegisterNextStepAction(stepKey, stepAction)
-
-	return nil
+    select {
+    case <-done:
+        return err
+    case <-ctx.Done():
+        return ctx.Err()
+    }
 }
 
 // RegisterPhoneNumberFunc обрабатывает ввод ФИО и запрашивает номер телефона
@@ -129,71 +201,130 @@ func GetPVZFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[s
 // stepParams - параметры шага регистрации
 // Возвращает ошибку, если что-то пошло не так
 func RegisterPhoneNumberFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
-	db := database.Connect()
-	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-	message := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите номер телефона:")
-	_, err := client.Send(message)
-	if err != nil {
-		return err
-	}
+    var wg sync.WaitGroup
+	mu := sync.Mutex{}
+    var err error
 
-	user := models.TelegramUser{ID: update.Message.From.ID}
-	err = user.GetOrCreate(update.Message.From, *db)
-	if err != nil {
-		return err
-	}
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        select {
+        case <-ctx.Done():
+            return
+        default:
+			db := database.Connect()
+			defer db.Close()
 
-	user.FIO = update.Message.Text
-	_, err = db.Model(&user).WherePK().Update()
-	if err != nil {
-		return err
-	}
+			message := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите номер телефона:")
+			mu.Lock()
+			_, err = client.Send(message)
+			mu.Unlock()
+			if err != nil {
+				return
+			}
 
-	stepManager := controllers.GetNextStepManager()
+			user := models.TelegramUser{ID: update.Message.From.ID}
+			err = user.GetOrCreate(update.Message.From, *db)
+			if err != nil {
+				return
+			}
 
-	stepKey := controllers.NextStepKey{
-		ChatID: update.Message.Chat.ID,
-		UserID: update.Message.From.ID,
-	}
-	stepAction := controllers.NextStepAction{
-		Func:        GetPVZFunc,
-		Params:      make(map[string]any),
-		CreatedAtTS: time.Now().Unix(),
-	}
+			user.FIO = update.Message.Text
+			_, err = db.Model(&user).WherePK().Update()
+			if err != nil {
+				return
+			}
 
-	stepManager.RegisterNextStepAction(stepKey, stepAction)
+			stepKey := controllers.NextStepKey{
+				ChatID: update.Message.Chat.ID,
+				UserID: update.Message.From.ID,
+			}
+			stepAction := controllers.NextStepAction{
+				Func:        GetPVZFunc,
+				Params:      make(map[string]any),
+				CreatedAtTS: time.Now().Unix(),
+			}
 
-	return nil
+			mu.Lock()
+			controllers.GetNextStepManager().RegisterNextStepAction(stepKey, stepAction)
+			mu.Unlock()
+        }
+    }()
+
+    done := make(chan struct{})
+    go func() {
+        wg.Wait()
+        close(done)
+    }()
+
+    select {
+    case <-done:
+        return err
+    case <-ctx.Done():
+        return ctx.Err()
+    }
 }
 
 // Run запускает процесс регистрации пользователя
 // update - обновление от Telegram API
 // Возвращает ошибку, если что-то пошло не так
 func (r RegisterUser) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &r.Client, true)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-	stepManager := controllers.GetNextStepManager()
+    var wg sync.WaitGroup
+    var err error
 
-	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Введите ФИО")
-	_, err := r.Client.Send(message)
-	if err != nil {
-		return err
-	}
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        select {
+        case <-ctx.Done():
+            return
+        default:
+			r.mu.Lock()
+			ClearNextStepForUser(update, &r.Client, true)
+			r.mu.Unlock()
+		
+			message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Введите ФИО")
+			r.mu.Lock()
+			_, err = r.Client.Send(message)
+			r.mu.Unlock()
+			if err != nil {
+				return
+			}
+		
+			stepKey := controllers.NextStepKey{
+				ChatID: update.CallbackQuery.Message.Chat.ID,
+				UserID: update.CallbackQuery.From.ID,
+			}
+			stepAction := controllers.NextStepAction{
+				Func:        RegisterPhoneNumberFunc,
+				Params:      make(map[string]any),
+				CreatedAtTS: time.Now().Unix(),
+			}
+		
+			r.mu.Lock()
+			controllers.GetNextStepManager().RegisterNextStepAction(stepKey, stepAction)
+			r.mu.Unlock()
+        }
+    }()
 
-	stepKey := controllers.NextStepKey{
-		ChatID: update.CallbackQuery.Message.Chat.ID,
-		UserID: update.CallbackQuery.From.ID,
-	}
-	stepAction := controllers.NextStepAction{
-		Func:        RegisterPhoneNumberFunc,
-		Params:      make(map[string]any),
-		CreatedAtTS: time.Now().Unix(),
-	}
+    done := make(chan struct{})
+    go func() {
+        wg.Wait()
+        close(done)
+    }()
 
-	stepManager.RegisterNextStepAction(stepKey, stepAction)
-
-	return nil
+    select {
+    case <-done:
+        return err
+    case <-ctx.Done():
+        return ctx.Err()
+    }
 }
 
 // GetName возвращает имя команды

@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"errors"
-	"log"
+	"main/logger"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -93,13 +93,13 @@ func (n *NextStepManager) ClearOldSteps(client tgbotapi.BotAPI) (int, error) {
 func RunStepUpdates(update tgbotapi.Update, stepManager *NextStepManager, client tgbotapi.BotAPI) {
 	err := stepManager.RunUpdates(update, client)
 	if err != nil {
-		log.Printf("run next steps says: %v\n", err)
+		logger.GetLogger().Error("run next steps says: %v\n", err)
 	}
 
 	stepsCleaned, err := stepManager.ClearOldSteps(client)
 	if err != nil {
-		log.Printf("clear old steps says: %v\n", err)
+		logger.GetLogger().Error("clear old steps says: %v\n", err)
 	} else if stepsCleaned != 0 {
-		log.Printf("Cleaned %d old steps\n", stepsCleaned)
+		logger.GetLogger().Info("Cleaned %d old steps\n", stepsCleaned)
 	}
 }

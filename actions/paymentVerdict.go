@@ -1,10 +1,13 @@
 package actions
 
 import (
+	"context"
 	"main/database"
 	"main/database/models"
 	"main/filters"
 	"strconv"
+	"sync"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -22,58 +25,104 @@ const (
 type PaymentVerdict struct {
 	Name   string
 	Client tgbotapi.BotAPI
+	mu     *sync.Mutex
+}
+
+func NewPaymentVerdictHandler(client tgbotapi.BotAPI) *PaymentVerdict {
+	return &PaymentVerdict{
+		Name:   "paymentVerdict",
+		Client: client,
+		mu:     &sync.Mutex{},
+	}
 }
 
 // Run обрабатывает результат проверки оплаты администратором
 // update - обновление от Telegram API
 // Возвращает ошибку, если что-то пошло не так
 func (p PaymentVerdict) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &p.Client, true)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	data := filters.ParseCallbackData(update.CallbackQuery.Data)
+	var wg sync.WaitGroup
+	var err error
 
-	userId, err := strconv.ParseInt(data["userId"], 10, 64)
-	if err != nil {
-		return err
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			p.mu.Lock()
+			ClearNextStepForUser(update, &p.Client, true)
+			p.mu.Unlock()
 
-	paymentAccepted := data["ok"]
+			data := filters.ParseCallbackData(update.CallbackQuery.Data)
 
-	if paymentAccepted == "true" {
-		message := tgbotapi.NewMessage(userId, paymentAcceptedMessageText)
-		_, err := p.Client.Send(message)
-		if err != nil {
-			return err
+			var userId int64
+			userId, err = strconv.ParseInt(data["userId"], 10, 64)
+			if err != nil {
+				return
+			}
+
+			paymentAccepted := data["ok"]
+
+			if paymentAccepted == "true" {
+				message := tgbotapi.NewMessage(userId, paymentAcceptedMessageText)
+				p.mu.Lock()
+				_, err = p.Client.Send(message)
+				p.mu.Unlock()
+				if err != nil {
+					return
+				}
+
+				p.mu.Lock()
+				_, err = p.Client.Send(tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, update.CallbackQuery.Message.Caption+"\n\nОплата принята✅"))
+				p.mu.Unlock()
+				if err != nil {
+					return
+				}
+
+				db := database.Connect()
+				defer db.Close()
+
+				_, err = db.Model(&models.ShoppingCart{}).Where("user_id = ?", userId).Delete()
+				if err != nil {
+					return
+				}
+
+				return
+			}
+
+			message := tgbotapi.NewMessage(userId, paymentRejectedMessageText)
+			p.mu.Lock()
+			_, err = p.Client.Send(message)
+			p.mu.Unlock()
+			if err != nil {
+				return
+			}
+
+			p.mu.Lock()
+			_, err = p.Client.Send(tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, update.CallbackQuery.Message.Caption+"\n\nОплата отклонена❌"))
+			p.mu.Unlock()
+			if err != nil {
+				return
+			}
 		}
+	}()
 
-		_, err = p.Client.Send(tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, update.CallbackQuery.Message.Caption+"\n\nОплата принята✅"))
-		if err != nil {
-			return err
-		}
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
 
-		db := database.Connect()
-		defer db.Close()
-
-		_, err = db.Model(&models.ShoppingCart{}).Where("user_id = ?", userId).Delete()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	message := tgbotapi.NewMessage(userId, paymentRejectedMessageText)
-	_, err = p.Client.Send(message)
-	if err != nil {
+	select {
+	case <-done:
 		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-
-	_, err = p.Client.Send(tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, update.CallbackQuery.Message.Caption+"\n\nОплата отклонена❌"))
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // GetName возвращает имя команды

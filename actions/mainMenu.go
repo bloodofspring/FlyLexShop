@@ -1,6 +1,12 @@
 package actions
 
-import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+import (
+	"context"
+	"sync"
+	"time"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
 
 // MainMenu представляет собой структуру для отображения главного меню
 // Name - имя команды
@@ -8,46 +14,88 @@ import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 type MainMenu struct {
 	Name   string
 	Client tgbotapi.BotAPI
+	mu     *sync.Mutex
+}
+
+func NewMainMenuHandler(client tgbotapi.BotAPI) *MainMenu {
+	return &MainMenu{
+		Name:   "mainMenu",
+		Client: client,
+		mu:     &sync.Mutex{},
+	}
 }
 
 // Run запускает отображение главного меню
 // update - обновление от Telegram API
 // Возвращает ошибку, если что-то пошло не так
 func (m MainMenu) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &m.Client, true)
-	const text = "<b>Главное меню</b>\nВыберите опцию:"
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	settingsCallbackData := "profileSettings"
-	shopCallbackData := "shop"
-	aboutCallbackData := "about"
+	var wg sync.WaitGroup
+	var err error
 
-	keyboard := tgbotapi.InlineKeyboardMarkup{
-		InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
-			{{Text: "Настройки", CallbackData: &settingsCallbackData}},
-			{{Text: "Магазин", CallbackData: &shopCallbackData}},
-			{{Text: "О нас", CallbackData: &aboutCallbackData}},
-		},
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			m.mu.Lock()
+			ClearNextStepForUser(update, &m.Client, true)
+			m.mu.Unlock()
 
-	if update.CallbackQuery != nil {
-		message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, text)
-		message.ParseMode = "HTML"
+			const text = "<b>Главное меню</b>\nВыберите опцию:"
 
-		message.ReplyMarkup = &keyboard
+			settingsCallbackData := "profileSettings"
+			shopCallbackData := "shop"
+			aboutCallbackData := "about"
 
-		_, err := m.Client.Send(message)
+			keyboard := tgbotapi.InlineKeyboardMarkup{
+				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
+					{{Text: "Настройки", CallbackData: &settingsCallbackData}},
+					{{Text: "Магазин", CallbackData: &shopCallbackData}},
+					{{Text: "О нас", CallbackData: &aboutCallbackData}},
+				},
+			}
 
+			if update.CallbackQuery != nil {
+				message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, text)
+				message.ParseMode = "HTML"
+
+				message.ReplyMarkup = &keyboard
+
+				m.mu.Lock()
+				_, err = m.Client.Send(message)
+				m.mu.Unlock()
+
+				return
+			}
+
+			message := tgbotapi.NewMessage(update.Message.Chat.ID, text)
+			message.ParseMode = "HTML"
+
+			message.ReplyMarkup = keyboard
+
+			m.mu.Lock()
+			_, err = m.Client.Send(message)
+			m.mu.Unlock()
+		}
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
 		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-
-	message := tgbotapi.NewMessage(update.Message.Chat.ID, text)
-	message.ParseMode = "HTML"
-
-	message.ReplyMarkup = keyboard
-
-	_, err := m.Client.Send(message)
-
-	return err
 }
 
 // GetName возвращает имя команды

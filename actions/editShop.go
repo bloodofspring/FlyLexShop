@@ -1,12 +1,13 @@
 package actions
 
 import (
-	"fmt"
+	"context"
 	"main/controllers"
 	"main/database"
 	"main/database/models"
 	"main/filters"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-pg/pg/v10"
@@ -19,59 +20,101 @@ import (
 type EditShop struct {
 	Name   string
 	Client tgbotapi.BotAPI
+	mu     *sync.Mutex
+}
+
+func NewEditShopHandler(client tgbotapi.BotAPI) *EditShop {
+	return &EditShop{
+		Name:   "editShop",
+		Client: client,
+		mu:     &sync.Mutex{},
+	}
 }
 
 // Run обрабатывает действие редактирования магазина на основе параметра a.
 // update - обновление от Telegram API.
 // Возвращает ошибку, если что-то пошло не так.
 func (e EditShop) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &e.Client, true)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	var wg sync.WaitGroup
+	var err error
+	
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			e.mu.Lock()
+			ClearNextStepForUser(update, &e.Client, true)
+			e.mu.Unlock()
 
-	db := database.Connect()
-	defer db.Close()
+			db := database.Connect()
+			defer db.Close()
 
-	userDb := models.TelegramUser{ID: update.CallbackQuery.From.ID}
-	err := userDb.Get(*db)
-	if err != nil {
+			userDb := models.TelegramUser{ID: update.CallbackQuery.From.ID}
+			err = userDb.Get(*db)
+			if err != nil {
+				return
+			}
+
+			err = db.Model(&userDb).
+				WherePK().
+				Relation("ShopSession").
+				Relation("ShopSession.ProductAt").
+				Relation("ShopSession.Catalog").
+				Select()
+			if err != nil {
+				return
+			}
+
+			if userDb.ShopSession == nil {
+				err = ViewCatalog{Name: "viewCatalog", Client: e.Client}.Run(update)
+
+				return
+			}
+
+			data := filters.ParseCallbackData(update.CallbackQuery.Data)
+			session := *userDb.ShopSession
+
+			e.mu.Lock()
+			switch data["a"] {
+			case "removeCatalog":
+				err = removeCatalog(update, e.Client, session, *db)
+			case "removeProduct":
+				err = removeProduct(update, e.Client, session, *db)
+			case "changePhoto":
+				err = changePhoto(update, e.Client, session)
+			case "changePrice":
+				err = changePrice(update, e.Client, session)
+			case "changeName":
+				err = changeName(update, e.Client, session)
+			case "changeDescription":
+				changeDescription(update, e.Client, session)
+			case "createProduct":
+				err = createProduct(update, e.Client, session)
+			}
+			e.mu.Unlock()
+
+			return
+		}
+	}()
+	
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	
+	select {
+	case <-done:
 		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-	err = db.Model(&userDb).
-		WherePK().
-		Relation("ShopSession").
-		Relation("ShopSession.ProductAt").
-		Relation("ShopSession.Catalog").
-		Select()
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("userDb.ShopSession: ", userDb.ShopSession)
-
-	if userDb.ShopSession == nil {
-		return ViewCatalog{Name: "viewCatalog", Client: e.Client}.Run(update)
-	}
-
-	data := filters.ParseCallbackData(update.CallbackQuery.Data)
-	session := *userDb.ShopSession
-
-	switch data["a"] {
-	case "removeCatalog":
-		err = removeCatalog(update, e.Client, session, *db)
-	case "removeProduct":
-		err = removeProduct(update, e.Client, session, *db)
-	case "changePhoto":
-		err = changePhoto(update, e.Client, session)
-	case "changePrice":
-		err = changePrice(update, e.Client, session)
-	case "changeName":
-		err = changeName(update, e.Client, session)
-	case "changeDescription":
-		changeDescription(update, e.Client, session)
-	case "createProduct":
-		err = createProduct(update, e.Client, session)
-	}
-
-	return err
 }
 
 // removeCatalog удаляет каталог и возвращает пользователя к списку каталогов.
@@ -409,8 +452,6 @@ func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 
 	db := database.Connect()
 	defer db.Close()
-
-	fmt.Println("stepParams: ", stepParams["session"])
 
 	_, err := db.Model(&models.Product{
 		ImageFileID: photoID,

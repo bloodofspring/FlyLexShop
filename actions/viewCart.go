@@ -1,11 +1,14 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 	"main/database"
 	"main/database/models"
 	"main/filters"
 	"strconv"
+	"sync"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -16,149 +19,197 @@ import (
 type ViewCart struct {
 	Name   string
 	Client tgbotapi.BotAPI
+	mu     *sync.Mutex
 }
 
+func NewViewCartHandler(client tgbotapi.BotAPI) *ViewCart {
+	return &ViewCart{
+		Name:   "view-cart",
+		Client: client,
+		mu:     &sync.Mutex{},
+	}
+}
 // Run запускает отображение содержимого корзины
 // update - обновление от Telegram API
 // Возвращает ошибку, если что-то пошло не так
 func (v ViewCart) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &v.Client, true)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-	db := database.Connect()
-	defer db.Close()
+    var wg sync.WaitGroup
+    var err error
 
-	pars := filters.ParseCallbackData(update.CallbackQuery.Data)
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        select {
+        case <-ctx.Done():
+            return
+        default:
+			v.mu.Lock()
+			ClearNextStepForUser(update, &v.Client, true)
+			v.mu.Unlock()
 
-	itemIdStr, ok := pars["itemId"]
-	if !ok {
-		itemIdStr = "0"
-	}
-
-	itemId, err := strconv.Atoi(itemIdStr)
-	if err != nil {
-		return err
-	}
-
-	var items []models.Product
-	err = db.Model(&items).Where("id IN (SELECT product_id FROM shopping_carts WHERE user_id = ?)", update.CallbackQuery.From.ID).Select()
-	if err != nil {
-		return err
-	}
-
-	if len(items) == 0 {
-		_, err = v.Client.Request(tgbotapi.CallbackConfig{
-			CallbackQueryID: update.CallbackQuery.ID,
-			Text:            "В корзине пока что нет товаров",
-		})
-		if err != nil {
-			return err
-		}
-
-		return nil
-	} else if itemId >= len(items) {
-		itemId = 0
-	} else if itemId < 0 {
-		itemId = len(items) - 1
-	}
-
-	item := items[itemId]
-
-	_, ok = pars["remove"]
-	if ok {
-		_, err = db.Model(&models.ShoppingCart{}).Where("user_id = ?", update.CallbackQuery.From.ID).Where("product_id = ?", item.ID).Delete()
-		if err != nil {
-			return err
-		}
-
-		err = db.Model(&items).Where("id IN (SELECT product_id FROM shopping_carts WHERE user_id = ?)", update.CallbackQuery.From.ID).Select()
-		if err != nil {
-			return err
-		}
-
-		if len(items) == 0 {
-			_, err = v.Client.Request(tgbotapi.CallbackConfig{
-				CallbackQueryID: update.CallbackQuery.ID,
-				Text:            "Теперь ваша карзина пуста",
-				ShowAlert:       true,
-			})
-			if err != nil {
-				return err
+			db := database.Connect()
+			defer db.Close()
+		
+			pars := filters.ParseCallbackData(update.CallbackQuery.Data)
+		
+			itemIdStr, ok := pars["itemId"]
+			if !ok {
+				itemIdStr = "0"
 			}
+		
+			var itemId int
+			itemId, err = strconv.Atoi(itemIdStr)
+			if err != nil {
+				return
+			}
+		
+			var items []models.Product
+			err = db.Model(&items).Where("id IN (SELECT product_id FROM shopping_carts WHERE user_id = ?)", update.CallbackQuery.From.ID).Select()
+			if err != nil {
+				return
+			}
+		
+			if len(items) == 0 {
+				v.mu.Lock()
+				_, err = v.Client.Request(tgbotapi.CallbackConfig{
+					CallbackQueryID: update.CallbackQuery.ID,
+					Text:            "В корзине пока что нет товаров",
+				})
+				v.mu.Unlock()
 
-			err = Shop{Name: "reset-to-shop", Client: v.Client}.Run(update)
-			return err
-		}
+				return
+			} else if itemId >= len(items) {
+				itemId = 0
+			} else if itemId < 0 {
+				itemId = len(items) - 1
+			}
+		
+			item := items[itemId]
+		
+			_, ok = pars["remove"]
+			if ok {
+				_, err = db.Model(&models.ShoppingCart{}).Where("user_id = ?", update.CallbackQuery.From.ID).Where("product_id = ?", item.ID).Delete()
+				if err != nil {
+					return
+				}
+		
+				err = db.Model(&items).Where("id IN (SELECT product_id FROM shopping_carts WHERE user_id = ?)", update.CallbackQuery.From.ID).Select()
+				if err != nil {
+					return
+				}
+		
+				if len(items) == 0 {
+					v.mu.Lock()
+					_, err = v.Client.Request(tgbotapi.CallbackConfig{
+						CallbackQueryID: update.CallbackQuery.ID,
+						Text:            "Теперь ваша карзина пуста",
+						ShowAlert:       true,
+					})
+					v.mu.Unlock()
+					if err != nil {
+						return
+					}
+		
+					err = Shop{Name: "reset-to-shop", Client: v.Client}.Run(update)
+					return
+				}
+		
+				if itemId >= len(items) {
+					itemId = len(items) - 1
+				}
+		
+				update.CallbackQuery.Data = fmt.Sprintf("viewCart?itemId=%d", itemId)
+				err = ViewCart{Name: "view-cart", Client: v.Client}.Run(update)
+				return
+			}
+		
+			keyboard := [][]tgbotapi.InlineKeyboardButton{}
 
-		if itemId >= len(items) {
-			itemId = len(items) - 1
-		}
+			ok, err = items[itemId].InUserCart(update.CallbackQuery.From.ID, *db)
+			if ok && err == nil {
+				callbackData := fmt.Sprintf("viewCart?itemId=%d&remove=true", itemId)
+				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
+					{Text: "Удалить из корзины", CallbackData: &callbackData},
+				})
+			} else if err != nil {
+				return
+			}
+		
+			if len(items) > 1 {
+				nextItemCallbackData := fmt.Sprintf("viewCart?itemId=%d", itemId+1)
+				prevItemCallbackData := fmt.Sprintf("viewCart?itemId=%d", itemId-1)
+				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
+					{Text: "⬅️", CallbackData: &prevItemCallbackData},
+					{Text: "➡️", CallbackData: &nextItemCallbackData},
+				})
+			}
+		
+			toShop := "shop"
+			makeOrder := "makeOrder"
+			keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "К списку каталогов", CallbackData: &toShop}, {Text: "Оформить заказ", CallbackData: &makeOrder}})
+		
+			content := fmt.Sprintf("<b>%s</b>\nЦена: %d₽\n\n%s", item.Name, item.Price, item.Description)
+		
+			if update.CallbackQuery.Message.Caption != "" {
+				editMeida := tgbotapi.EditMessageMediaConfig{
+					BaseEdit: tgbotapi.BaseEdit{
+						ChatID:    update.CallbackQuery.Message.Chat.ID,
+						MessageID: update.CallbackQuery.Message.MessageID,
+					},
+					Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FileID(item.ImageFileID)),
+				}
+				v.mu.Lock()
+				_, err = v.Client.Send(editMeida)
+				v.mu.Unlock()
+				if err != nil {
+					return
+				}
+		
+				editCaption := tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, content)
+				editCaption.ParseMode = "HTML"
+				editCaption.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{InlineKeyboard: keyboard}
+				v.mu.Lock()
+				_, err = v.Client.Send(editCaption)
+				v.mu.Unlock()
+				if err != nil {
+					return
+				}
+		
+			} else {
+				v.mu.Lock()
+				v.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
+				v.mu.Unlock()
 
-		update.CallbackQuery.Data = fmt.Sprintf("viewCart?itemId=%d", itemId)
-		return ViewCart{Name: "view-cart", Client: v.Client}.Run(update)
-	}
+				photoMsg := tgbotapi.NewPhoto(update.CallbackQuery.Message.Chat.ID, tgbotapi.FileID(item.ImageFileID))
+				photoMsg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: keyboard}
+				photoMsg.Caption = content
+				photoMsg.ParseMode = "HTML"
+		
+				v.mu.Lock()
+				_, err = v.Client.Send(photoMsg)
+				v.mu.Unlock()
+				if err != nil {
+					return
+				}
+			}
+        }
+    }()
 
-	keyboard := [][]tgbotapi.InlineKeyboardButton{}
+    done := make(chan struct{})
+    go func() {
+        wg.Wait()
+        close(done)
+    }()
 
-	if ok, err := items[itemId].InUserCart(update.CallbackQuery.From.ID, *db); ok && err == nil {
-		callbackData := fmt.Sprintf("viewCart?itemId=%d&remove=true", itemId)
-		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
-			{Text: "Удалить из корзины", CallbackData: &callbackData},
-		})
-	} else if err != nil {
-		return err
-	}
-
-	if len(items) > 1 {
-		nextItemCallbackData := fmt.Sprintf("viewCart?itemId=%d", itemId+1)
-		prevItemCallbackData := fmt.Sprintf("viewCart?itemId=%d", itemId-1)
-		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
-			{Text: "⬅️", CallbackData: &prevItemCallbackData},
-			{Text: "➡️", CallbackData: &nextItemCallbackData},
-		})
-	}
-
-	toShop := "shop"
-	makeOrder := "makeOrder"
-	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "К списку каталогов", CallbackData: &toShop}, {Text: "Оформить заказ", CallbackData: &makeOrder}})
-
-	content := fmt.Sprintf("<b>%s</b>\nЦена: %d₽\n\n%s", item.Name, item.Price, item.Description)
-
-	if update.CallbackQuery.Message.Caption != "" {
-		editMeida := tgbotapi.EditMessageMediaConfig{
-			BaseEdit: tgbotapi.BaseEdit{
-				ChatID:    update.CallbackQuery.Message.Chat.ID,
-				MessageID: update.CallbackQuery.Message.MessageID,
-			},
-			Media: tgbotapi.NewInputMediaPhoto(tgbotapi.FileID(item.ImageFileID)),
-		}
-		_, err = v.Client.Send(editMeida)
-		if err != nil {
-			return err
-		}
-
-		editCaption := tgbotapi.NewEditMessageCaption(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, content)
-		editCaption.ParseMode = "HTML"
-		editCaption.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{InlineKeyboard: keyboard}
-
-		_, err = v.Client.Send(editCaption)
-		if err != nil {
-			return err
-		}
-
-	} else {
-		v.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
-		photoMsg := tgbotapi.NewPhoto(update.CallbackQuery.Message.Chat.ID, tgbotapi.FileID(item.ImageFileID))
-		photoMsg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: keyboard}
-		photoMsg.Caption = content
-		photoMsg.ParseMode = "HTML"
-
-		_, err = v.Client.Send(photoMsg)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+    select {
+    case <-done:
+        return err
+    case <-ctx.Done():
+        return ctx.Err()
+    }
 }
 
 // GetName возвращает имя команды
