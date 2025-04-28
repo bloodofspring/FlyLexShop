@@ -3,5 +3,4 @@
 *.log
 *.swp
 *.swo
-.DS_Store
-data/ 
+.DS_Store 
