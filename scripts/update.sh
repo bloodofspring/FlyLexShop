@@ -2,11 +2,10 @@
 
 set -e
 
-# Устанавливаем правильные права доступа
-chmod -R 777 .git
-
-# Добавляем директорию в список безопасных
+# Настраиваем Git для работы в CI/CD
 git config --global --add safe.directory "$(pwd)"
+git config --global core.autocrlf false
+git config --global core.fileMode false
 
 git pull origin main
 if [ $? -ne 0 ]; then
