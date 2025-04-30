@@ -2,6 +2,9 @@
 
 set -e
 
+# Добавляем директорию в список безопасных
+git config --global --add safe.directory "$(pwd)"
+
 git pull origin main
 if [ $? -ne 0 ]; then
   echo "Ошибка при выполнении git pull"
