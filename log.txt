@@ -1,0 +1,455 @@
+{
+    "timestamp": "2025-04-30 17:09:17.756",
+    "level": "FATAL",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 100,
+    "message": "Failed to initialize database: dial tcp: lookup postgres: no such host"
+}
+{
+    "timestamp": "2025-04-30 17:10:15.570",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 40,
+    "message": "Successfully authorized on account @testing_158258358_bot"
+}
+{
+    "timestamp": "2025-04-30 17:11:13.466",
+    "level": "ERROR",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 177,
+    "message": "Error handling viewCatalog update: pg: Model(nil)"
+}
+{
+    "timestamp": "2025-04-30 17:11:40.000",
+    "level": "ERROR",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 177,
+    "message": "Error handling viewCatalog update: ERROR #23505 duplicate key value violates unique constraint \"shop_view_sessions_catalog_id_key\""
+}
+{
+    "timestamp": "2025-04-30 17:12:12.813",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 129,
+    "message": "Received signal: interrupt"
+}
+{
+    "timestamp": "2025-04-30 17:12:12.814",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 193,
+    "message": "Shutting down..."
+}
+{
+    "timestamp": "2025-04-30 17:12:12.814",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 203,
+    "message": "All handlers completed successfully"
+}
+{
+    "timestamp": "2025-04-30 17:12:12.814",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 209,
+    "message": "Final metrics: map[active_goroutines:21 avg_processing_time:0.12027050793749999 errors_by_type:map[handler_error:2] failed_messages:0 max_goroutines:25 max_processing_time:0.24594425 total_messages:16]"
+}
+{
+    "timestamp": "2025-04-30 17:12:12.814",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 211,
+    "message": "Bot shutdown complete"
+}
+{
+    "timestamp": "2025-04-30 17:12:14.687",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 40,
+    "message": "Successfully authorized on account @testing_158258358_bot"
+}
+{
+    "timestamp": "2025-04-30 17:13:59.587",
+    "level": "ERROR",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 177,
+    "message": "Error handling viewCatalog update: pg: Model(nil)"
+}
+{
+    "timestamp": "2025-04-30 17:15:33.989",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 129,
+    "message": "Received signal: interrupt"
+}
+{
+    "timestamp": "2025-04-30 17:15:33.989",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 193,
+    "message": "Shutting down..."
+}
+{
+    "timestamp": "2025-04-30 17:15:33.990",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 203,
+    "message": "All handlers completed successfully"
+}
+{
+    "timestamp": "2025-04-30 17:15:33.990",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 209,
+    "message": "Final metrics: map[active_goroutines:23 avg_processing_time:0.17820591775675676 errors_by_type:map[handler_error:1] failed_messages:0 max_goroutines:23 max_processing_time:0.586478292 total_messages:37]"
+}
+{
+    "timestamp": "2025-04-30 17:15:33.990",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 211,
+    "message": "Bot shutdown complete"
+}
+{
+    "timestamp": "2025-04-30 17:16:02.588",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 40,
+    "message": "Successfully authorized on account @testing_158258358_bot"
+}
+{
+    "timestamp": "2025-04-30 17:16:11.787",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 302,
+    "message": "userDb.ShopSession.Offest: \u0026{2 5033118201 \u003cnil\u003e 5033118201 1746022399 1746022399 1 0x140002a0190 0 \u003cnil\u003e 0} "
+}
+{
+    "timestamp": "2025-04-30 17:16:15.202",
+    "level": "ERROR",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 177,
+    "message": "Error handling viewCatalog update: pg: Model(nil)"
+}
+{
+    "timestamp": "2025-04-30 17:16:37.741",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 129,
+    "message": "Received signal: interrupt"
+}
+{
+    "timestamp": "2025-04-30 17:16:37.741",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 193,
+    "message": "Shutting down..."
+}
+{
+    "timestamp": "2025-04-30 17:16:37.741",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 203,
+    "message": "All handlers completed successfully"
+}
+{
+    "timestamp": "2025-04-30 17:16:37.741",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 209,
+    "message": "Final metrics: map[active_goroutines:14 avg_processing_time:0.083477368 errors_by_type:map[handler_error:1] failed_messages:0 max_goroutines:14 max_processing_time:0.160040792 total_messages:6]"
+}
+{
+    "timestamp": "2025-04-30 17:16:37.741",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 211,
+    "message": "Bot shutdown complete"
+}
+{
+    "timestamp": "2025-04-30 17:16:39.238",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 40,
+    "message": "Successfully authorized on account @testing_158258358_bot"
+}
+{
+    "timestamp": "2025-04-30 17:16:41.030",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 254,
+    "message": "userDb.ShopSession.Offest: \u0026{2 5033118201 \u003cnil\u003e 5033118201 1746022399 1746022399 1 \u003cnil\u003e 1 \u003cnil\u003e 0} "
+}
+{
+    "timestamp": "2025-04-30 17:16:41.031",
+    "level": "ERROR",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 177,
+    "message": "Error handling viewCatalog update: pg: Model(nil)"
+}
+{
+    "timestamp": "2025-04-30 17:17:07.379",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 129,
+    "message": "Received signal: interrupt"
+}
+{
+    "timestamp": "2025-04-30 17:17:07.379",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 193,
+    "message": "Shutting down..."
+}
+{
+    "timestamp": "2025-04-30 17:17:07.379",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 203,
+    "message": "All handlers completed successfully"
+}
+{
+    "timestamp": "2025-04-30 17:17:07.379",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 209,
+    "message": "Final metrics: map[active_goroutines:10 avg_processing_time:0.014490458 errors_by_type:map[handler_error:1] failed_messages:0 max_goroutines:10 max_processing_time:0.014490458 total_messages:1]"
+}
+{
+    "timestamp": "2025-04-30 17:17:07.379",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 211,
+    "message": "Bot shutdown complete"
+}
+{
+    "timestamp": "2025-04-30 17:17:08.633",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 40,
+    "message": "Successfully authorized on account @testing_158258358_bot"
+}
+{
+    "timestamp": "2025-04-30 17:17:09.632",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 254,
+    "message": "userDb.ShopSession.Offest: \u003cnil\u003e "
+}
+{
+    "timestamp": "2025-04-30 17:17:09.632",
+    "level": "ERROR",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 177,
+    "message": "Error handling viewCatalog update: pg: Model(nil)"
+}
+{
+    "timestamp": "2025-04-30 17:17:22.156",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 129,
+    "message": "Received signal: interrupt"
+}
+{
+    "timestamp": "2025-04-30 17:17:22.156",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 193,
+    "message": "Shutting down..."
+}
+{
+    "timestamp": "2025-04-30 17:17:22.156",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 203,
+    "message": "All handlers completed successfully"
+}
+{
+    "timestamp": "2025-04-30 17:17:22.156",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 209,
+    "message": "Final metrics: map[active_goroutines:10 avg_processing_time:0.014360125 errors_by_type:map[handler_error:1] failed_messages:0 max_goroutines:10 max_processing_time:0.014360125 total_messages:1]"
+}
+{
+    "timestamp": "2025-04-30 17:17:22.156",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 211,
+    "message": "Bot shutdown complete"
+}
+{
+    "timestamp": "2025-04-30 17:17:23.662",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 40,
+    "message": "Successfully authorized on account @testing_158258358_bot"
+}
+{
+    "timestamp": "2025-04-30 17:17:25.570",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 254,
+    "message": "userDb.ShopSession.Offest: 1 "
+}
+{
+    "timestamp": "2025-04-30 17:17:25.571",
+    "level": "ERROR",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 177,
+    "message": "Error handling viewCatalog update: pg: Model(nil)"
+}
+{
+    "timestamp": "2025-04-30 17:17:40.496",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 129,
+    "message": "Received signal: interrupt"
+}
+{
+    "timestamp": "2025-04-30 17:17:40.496",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 193,
+    "message": "Shutting down..."
+}
+{
+    "timestamp": "2025-04-30 17:17:40.496",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 203,
+    "message": "All handlers completed successfully"
+}
+{
+    "timestamp": "2025-04-30 17:17:40.496",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 209,
+    "message": "Final metrics: map[active_goroutines:10 avg_processing_time:0.014072375 errors_by_type:map[handler_error:1] failed_messages:0 max_goroutines:10 max_processing_time:0.014072375 total_messages:1]"
+}
+{
+    "timestamp": "2025-04-30 17:17:40.496",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 211,
+    "message": "Bot shutdown complete"
+}
+{
+    "timestamp": "2025-04-30 17:17:41.795",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 40,
+    "message": "Successfully authorized on account @testing_158258358_bot"
+}
+{
+    "timestamp": "2025-04-30 17:17:45.270",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{2 5033118201 \u003cnil\u003e 5033118201 1746022399 1746022399 1 0x140004ce0a0 0 \u003cnil\u003e 0} "
+}
+{
+    "timestamp": "2025-04-30 17:17:48.769",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{2 5033118201 \u003cnil\u003e 5033118201 1746022399 1746022399 1 0x140002367d0 1 \u003cnil\u003e 1} "
+}
+{
+    "timestamp": "2025-04-30 17:17:50.137",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{2 5033118201 \u003cnil\u003e 5033118201 1746022399 1746022399 1 0x140004ce500 2 \u003cnil\u003e 2} "
+}
+{
+    "timestamp": "2025-04-30 17:17:51.521",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{2 5033118201 \u003cnil\u003e 5033118201 1746022399 1746022399 1 0x140004ce050 1 \u003cnil\u003e 0} "
+}
+{
+    "timestamp": "2025-04-30 17:17:52.884",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{2 5033118201 \u003cnil\u003e 5033118201 1746022399 1746022399 1 0x1400018c550 1 \u003cnil\u003e 1} "
+}
+{
+    "timestamp": "2025-04-30 17:17:54.291",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{2 5033118201 \u003cnil\u003e 5033118201 1746022399 1746022399 1 0x1400018c730 2 \u003cnil\u003e 1} "
+}
+{
+    "timestamp": "2025-04-30 17:18:12.147",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{1 1044385209 \u003cnil\u003e 1044385209 1746022371 1746022371 1 0x140001fcaa0 0 \u003cnil\u003e 1} "
+}
+{
+    "timestamp": "2025-04-30 17:18:13.685",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{1 1044385209 \u003cnil\u003e 1044385209 1746022371 1746022371 1 0x140004ce960 2 \u003cnil\u003e 1} "
+}
+{
+    "timestamp": "2025-04-30 17:18:14.789",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{1 1044385209 \u003cnil\u003e 1044385209 1746022371 1746022371 1 0x140004cee60 2 \u003cnil\u003e 2} "
+}
+{
+    "timestamp": "2025-04-30 17:18:16.066",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{1 1044385209 \u003cnil\u003e 1044385209 1746022371 1746022371 1 0x140004cf360 1 \u003cnil\u003e 0} "
+}
+{
+    "timestamp": "2025-04-30 17:18:24.073",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/actions/shop.go",
+    "line": 307,
+    "message": "userDb.ShopSession.Offest: \u0026{1 1044385209 \u003cnil\u003e 1044385209 1746022371 1746022371 1 0x14000236730 0 \u003cnil\u003e 0} "
+}
+{
+    "timestamp": "2025-04-30 17:18:55.821",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 129,
+    "message": "Received signal: interrupt"
+}
+{
+    "timestamp": "2025-04-30 17:18:55.821",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 193,
+    "message": "Shutting down..."
+}
+{
+    "timestamp": "2025-04-30 17:18:55.821",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 203,
+    "message": "All handlers completed successfully"
+}
+{
+    "timestamp": "2025-04-30 17:18:55.821",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 209,
+    "message": "Final metrics: map[active_goroutines:41 avg_processing_time:0.1943655584 errors_by_type:map[] failed_messages:0 max_goroutines:41 max_processing_time:0.339116209 total_messages:25]"
+}
+{
+    "timestamp": "2025-04-30 17:18:55.821",
+    "level": "INFO",
+    "file": "/Users/admin/GoProjects/FlyLexShop/run.go",
+    "line": 211,
+    "message": "Bot shutdown complete"
+}

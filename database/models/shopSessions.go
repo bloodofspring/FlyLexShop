@@ -9,7 +9,7 @@ type ShopViewSession struct {
 	CreatedAt int64 `pg:",default:extract(epoch from now())"`
 	UpdatedAt int64 `pg:",default:extract(epoch from now())"`
 
-	CatalogID   int      `pg:",fk:catalog_id,unique"`
+	CatalogID   int      `pg:",fk:catalog_id"`
 	Catalog     *Catalog `pg:"rel:belongs-to,fk:catalog_id"`
 	ProductAtID int
 	ProductAt   *Product `pg:"rel:has-one,fk:product_at_id"`

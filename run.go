@@ -174,7 +174,7 @@ func main() {
 					afterUpdate := act.HandleAll(update, *client)
 					for _, afterUpdate := range afterUpdate {
 						if afterUpdate.Error != nil {
-							log.Error("Error handling update: %v", afterUpdate.Error)
+							log.Error("Error handling %s update: %v", afterUpdate.Name, afterUpdate.Error)
 							metrics.RecordError("handler_error")
 						}
 					}
