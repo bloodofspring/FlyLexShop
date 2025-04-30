@@ -21,6 +21,7 @@ func (a About) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &a.Client, true)
 
 	// ААААА НУ ПОЧЕМУ ДЕПЛОЙ НЕ РАБОТАЕТ Я УСТАЛ
+	// P.S Он так и не заработал
 	fmt.Println("хуй")
 
 	return nil
