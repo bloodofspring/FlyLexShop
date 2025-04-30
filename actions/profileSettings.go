@@ -114,7 +114,7 @@ func (c ChangeName) Run(update tgbotapi.Update) error {
 
 			user.FIO = stepUpdate.Message.Text
 
-			_, err = db.Model(&user).WherePK().Update()
+			_, err = db.Model(&user).WherePK().Column("fio").Update()
 			if err != nil {
 				return err
 			}
@@ -219,7 +219,7 @@ func (c ChangePhone) Run(update tgbotapi.Update) error {
 
 			user.Phone = stepUpdate.Message.Text
 
-			_, err = db.Model(&user).WherePK().Update()
+			_, err = db.Model(&user).WherePK().Column("phone").Update()
 			if err != nil {
 				return err
 			}
@@ -307,7 +307,7 @@ func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 
 			user.DeliveryAddress = stepUpdate.Message.Text
 
-			_, err = db.Model(&user).WherePK().Update()
+			_, err = db.Model(&user).WherePK().Column("delivery_address").Update()
 			if err != nil {
 				return err
 			}

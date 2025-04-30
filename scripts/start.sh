@@ -32,9 +32,5 @@ chmod +x scripts/*.sh
 # Запускаем скрипт настройки cron
 ./scripts/setup-cron.sh
 
-# Создаем директорию для данных PostgreSQL, если её нет
-mkdir -p data/postgres
-chmod 777 data/postgres
-
-# Запускаем контейнеры без пересоздания томов
+# Запускаем контейнеры
 docker-compose up -d

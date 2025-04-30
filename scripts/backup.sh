@@ -24,9 +24,9 @@ docker exec fly-lex-shop-db pg_dump -U "$DB_USER" -d "$DB_NAME" > "$BACKUP_FILE"
 if [ $? -eq 0 ]; then
   echo "Бэкап успешно создан: $BACKUP_FILE"
   
-  # Удаление старых бэкапов (оставляем последние 7)
+  # Удаление старых бэкапов (оставляем последние 2)
   echo "Удаление старых бэкапов..."
-  ls -t backups/backup_*.sql | tail -n +8 | xargs -r rm
+  ls -t backups/backup_*.sql | tail -n +3 | xargs -r rm
   
   # Сжатие бэкапа
   echo "Сжатие бэкапа..."

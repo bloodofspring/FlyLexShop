@@ -3,12 +3,12 @@
 set -e
 
 echo "Остановка текущих контейнеров..."
-docker compose stop
+bash ./scripts/stop.sh
 
 echo "Обновление образов..."
 docker compose build
 
 echo "Запуск обновленных контейнеров..."
-docker compose up -d
+bash ./scripts/start.sh
 
 echo "Обновление завершено" 
