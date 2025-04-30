@@ -20,7 +20,7 @@ type About struct {
 func (a About) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &a.Client, true)
 
-	// Выводим информацию о боте
+	// ААААА НУ ПОЧЕМУ ДЕПЛОЙ НЕ РАБОТАЕТ Я УСТАЛ
 	fmt.Println("хуй")
 
 	return nil
