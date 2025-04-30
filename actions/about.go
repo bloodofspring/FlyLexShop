@@ -1,6 +1,10 @@
 package actions
 
-import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+import (
+	"fmt"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
 
 // About представляет собой структуру для отображения информации о боте
 // Name - имя команды
@@ -15,6 +19,8 @@ type About struct {
 // Возвращает ошибку, если что-то пошло не так
 func (a About) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &a.Client, true)
+
+	fmt.Println("хуй")
 
 	return nil
 }
