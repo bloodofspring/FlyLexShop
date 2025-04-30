@@ -20,5 +20,4 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /home/${{ secrets.SERVER_USERNAME }}/bots/FlyLexShop
-            chmod +x scripts/update.sh
             ./scripts/update.sh
