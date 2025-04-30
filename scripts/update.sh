@@ -2,6 +2,9 @@
 
 set -e
 
+# Устанавливаем правильные права доступа
+chmod -R 777 .git
+
 # Добавляем директорию в список безопасных
 git config --global --add safe.directory "$(pwd)"
 
