@@ -10,15 +10,18 @@ else
   exit 1
 fi
 
+# Определение пути к Docker
+DOCKER_CMD="/usr/local/bin/docker"
+
 # Создание директории для бэкапов, если её нет
 mkdir -p backups
 
 # Формирование имени файла бэкапа
 BACKUP_FILE="backups/backup_$(date +%Y%m%d_%H%M%S).sql"
 
-# Создание бэкапа
+# Создание бэкапа базы данных
 echo "Создание бэкапа базы данных..."
-docker exec fly-lex-shop-db pg_dump -U "$DB_USER" -d "$DB_NAME" > "$BACKUP_FILE"
+$DOCKER_CMD exec fly-lex-shop-db pg_dump -U $DB_USER -p $DB_PORT $DB_NAME > "$BACKUP_FILE"
 
 # Проверка успешности создания бэкапа
 if [ $? -eq 0 ]; then
@@ -29,8 +32,8 @@ if [ $? -eq 0 ]; then
   ls -t backups/backup_*.sql | tail -n +3 | xargs -r rm
   
   # Сжатие бэкапа
-  echo "Сжатие бэкапа..."
-  gzip "$BACKUP_FILE"
+  # echo "Сжатие бэкапа..."
+  # gzip "$BACKUP_FILE"
 else
   echo "Ошибка при создании бэкапа"
   exit 1
