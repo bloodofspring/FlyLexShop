@@ -11,10 +11,10 @@ import (
 func Connect() *pg.DB {
 	envFile, _ := godotenv.Read(".env")
 	db := pg.Connect(&pg.Options{
-		Addr:     "localhost:5432",
-		User:     "postgres",
-		Password: envFile["db_password"],
-		Database: envFile["db_name"], // bigBrotherBotDb
+		Addr:     envFile["DB_HOST"] + ":" + envFile["DB_PORT"],
+		User:     envFile["DB_USER"],
+		Password: envFile["DB_PASSWORD"],
+		Database: envFile["DB_NAME"],
 	})
 
 	return db

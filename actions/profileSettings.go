@@ -11,11 +11,17 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// ProfileSettings представляет собой структуру для управления настройками профиля пользователя.
+// Name - имя команды.
+// Client - экземпляр Telegram бота.
 type ProfileSettings struct {
 	Name   string
 	Client tgbotapi.BotAPI
 }
 
+// Run отображает меню настроек профиля.
+// update - обновление от Telegram API.
+// Возвращает ошибку, если отправка сообщения не удалась.
 func (p ProfileSettings) Run(update tgbotapi.Update) error {
 	const text = "<b>Настройки профиля</b>\nВыберите опцию:"
 
@@ -43,15 +49,22 @@ func (p ProfileSettings) Run(update tgbotapi.Update) error {
 	return err
 }
 
+// GetName возвращает имя команды ProfileSettings.
 func (p ProfileSettings) GetName() string {
 	return p.Name
 }
 
+// ChangeName представляет собой структуру для изменения ФИО пользователя.
+// Name - имя команды.
+// Client - экземпляр Telegram бота.
 type ChangeName struct {
 	Name   string
 	Client tgbotapi.BotAPI
 }
 
+// Run инициирует процесс изменения ФИО.
+// update - обновление от Telegram API.
+// Возвращает ошибку, если отправка сообщения не удалась.
 func (c ChangeName) Run(update tgbotapi.Update) error {
 	c.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
 	const text = "<b>Ваше ФИО сейчас: %s</b>\nВведите новое ФИО:"
@@ -101,7 +114,7 @@ func (c ChangeName) Run(update tgbotapi.Update) error {
 
 			user.FIO = stepUpdate.Message.Text
 
-			_, err = db.Model(&user).WherePK().Update()
+			_, err = db.Model(&user).WherePK().Column("fio").Update()
 			if err != nil {
 				return err
 			}
@@ -123,7 +136,7 @@ func (c ChangeName) Run(update tgbotapi.Update) error {
 
 			return err
 		},
-		Params: map[string]any{},
+		Params:      map[string]any{},
 		CreatedAtTS: time.Now().Unix(),
 	}
 	stepManager.RegisterNextStepAction(stepKey, stepAction)
@@ -194,7 +207,7 @@ func (c ChangePhone) Run(update tgbotapi.Update) error {
 				}
 
 				_, err := client.Send(message)
-				
+
 				return err
 			}
 
@@ -206,7 +219,7 @@ func (c ChangePhone) Run(update tgbotapi.Update) error {
 
 			user.Phone = stepUpdate.Message.Text
 
-			_, err = db.Model(&user).WherePK().Update()
+			_, err = db.Model(&user).WherePK().Column("phone").Update()
 			if err != nil {
 				return err
 			}
@@ -228,7 +241,7 @@ func (c ChangePhone) Run(update tgbotapi.Update) error {
 
 			return err
 		},
-		Params: map[string]any{},
+		Params:      map[string]any{},
 		CreatedAtTS: time.Now().Unix(),
 	}
 	stepManager.RegisterNextStepAction(stepKey, stepAction)
@@ -271,7 +284,7 @@ func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 	}
 
 	_, err = c.Client.Send(message)
-	
+
 	if err != nil {
 		return err
 	}
@@ -294,17 +307,17 @@ func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 
 			user.DeliveryAddress = stepUpdate.Message.Text
 
-			_, err = db.Model(&user).WherePK().Update()
+			_, err = db.Model(&user).WherePK().Column("delivery_address").Update()
 			if err != nil {
 				return err
 			}
-			
+
 			message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "<b>Адрес доставки успешно изменен</b>")
 			message.ParseMode = "HTML"
 
 			toSettingsCallbackData := "profileSettings"
 			toMainMenuCallbackData := "mainMenu"
-			
+
 			message.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
 				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
 					{{Text: "К настройкам", CallbackData: &toSettingsCallbackData}},
@@ -315,7 +328,7 @@ func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 
 			return err
 		},
-		Params: map[string]any{},
+		Params:      map[string]any{},
 		CreatedAtTS: time.Now().Unix(),
 	}
 	stepManager.RegisterNextStepAction(stepKey, stepAction)
@@ -334,7 +347,7 @@ type ChangeDeliveryService struct {
 
 func (c ChangeDeliveryService) GetKeyboard(userDb models.TelegramUser) [][]tgbotapi.InlineKeyboardButton {
 	type buttonConfig struct {
-		Text string
+		Text    string
 		Setting string
 	}
 
@@ -346,7 +359,7 @@ func (c ChangeDeliveryService) GetKeyboard(userDb models.TelegramUser) [][]tgbot
 		callQuery := fmt.Sprintf("changeDeliveryService?service=%s", cfg.Setting)
 
 		return tgbotapi.InlineKeyboardButton{
-			Text: cfg.Text,
+			Text:         cfg.Text,
 			CallbackData: &callQuery,
 		}
 	}
@@ -383,7 +396,7 @@ func (c ChangeDeliveryService) Run(update tgbotapi.Update) error {
 	}
 
 	message.Text = fmt.Sprintf(text, user.DeliveryService)
-	
+
 	toSettingsCallbackData := "profileSettings"
 	message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
 		InlineKeyboard: append(c.GetKeyboard(user), []tgbotapi.InlineKeyboardButton{{Text: "К настройкам", CallbackData: &toSettingsCallbackData}}),
@@ -391,7 +404,7 @@ func (c ChangeDeliveryService) Run(update tgbotapi.Update) error {
 
 	_, err = c.Client.Send(message)
 
-	return err	
+	return err
 }
 
 func (c ChangeDeliveryService) GetName() string {

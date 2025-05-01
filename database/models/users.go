@@ -46,18 +46,26 @@ func (u *TelegramUser) Get(db pg.DB) error {
 }
 
 func (u *TelegramUser) GetOrCreate(apiUser *tgbotapi.User, db pg.DB) error {
+	// Сначала пытаемся получить пользователя
 	err := u.Get(db)
 
+	// Если пользователь не найден, создаем нового
 	if err == pg.ErrNoRows {
-		_, err = db.Model(u).Insert()
+		u.ID = apiUser.ID
+		u.Username = apiUser.UserName
+		u.FirstName = apiUser.FirstName
+		u.LastName = apiUser.LastName
 
+		_, err = db.Model(u).Insert()
 		if err != nil {
 			return err
 		}
+		return nil
 	} else if err != nil {
 		return err
 	}
 
+	// Если пользователь найден, обновляем его данные
 	return u.UpdateProfileData(apiUser, &db)
 }
 

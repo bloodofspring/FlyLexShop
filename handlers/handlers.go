@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/google/uuid"
@@ -74,17 +73,25 @@ type ActiveHandlers struct {
 	Handlers []Handler
 }
 
-func (hl ActiveHandlers) HandleAll(update tgbotapi.Update, client tgbotapi.BotAPI) map[uuid.UUID]bool {
-	result := make(map[uuid.UUID]bool)
+type HandleResult struct {
+	UUID uuid.UUID
+	Name string
+	IsActed bool
+	Error error
+}
+
+func (hl ActiveHandlers) HandleAll(update tgbotapi.Update, client tgbotapi.BotAPI) map[uuid.UUID]HandleResult {
+	result := make(map[uuid.UUID]HandleResult)
 
 	for _, h := range hl.Handlers {
 		runResult, err := h.run(update, client)
 
-		if err != nil {
-			log.Println(h.GetName(), err)
+		result[h.getId()] = HandleResult{
+			UUID: h.getId(),
+			Name: h.GetName(),
+			IsActed: runResult,
+			Error: err,
 		}
-
-		result[h.getId()] = runResult
 	}
 
 	return result

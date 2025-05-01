@@ -1,73 +1,134 @@
 package actions
 
 import (
-	"fmt"
+	"context"
 	"main/controllers"
 	"main/database"
 	"main/database/models"
 	"main/filters"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-pg/pg/v10"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// EditShop управляет редактированием каталогов и товаров в магазине.
+// Name - имя команды.
+// Client - экземпляр Telegram бота.
 type EditShop struct {
 	Name   string
 	Client tgbotapi.BotAPI
+	mu     *sync.Mutex
 }
 
+func NewEditShopHandler(client tgbotapi.BotAPI) *EditShop {
+	return &EditShop{
+		Name:   "editShop",
+		Client: client,
+		mu:     &sync.Mutex{},
+	}
+}
+
+// Run обрабатывает действие редактирования магазина на основе параметра a.
+// update - обновление от Telegram API.
+// Возвращает ошибку, если что-то пошло не так.
 func (e EditShop) Run(update tgbotapi.Update) error {
-	ClearNextStepForUser(update, &e.Client, true)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	var wg sync.WaitGroup
+	var err error
+	
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			e.mu.Lock()
+			ClearNextStepForUser(update, &e.Client, true)
+			e.mu.Unlock()
 
-	db := database.Connect()
-	defer db.Close()
+			db := database.Connect()
+			defer db.Close()
 
-	userDb := models.TelegramUser{ID: update.CallbackQuery.From.ID}
-	err := userDb.Get(*db)
-	if err != nil {
+			userDb := models.TelegramUser{ID: update.CallbackQuery.From.ID}
+			err = userDb.Get(*db)
+			if err != nil {
+				return
+			}
+
+			err = db.Model(&userDb).
+				WherePK().
+				Relation("ShopSession").
+				Relation("ShopSession.ProductAt").
+				Relation("ShopSession.Catalog").
+				Select()
+			if err != nil {
+				return
+			}
+
+			if userDb.ShopSession == nil || userDb.ShopSession.CatalogID == 0 {
+				handler := NewViewCatalogHandler(e.Client)
+				handler.mu = e.mu
+				err = handler.Run(update)
+
+				return
+			}
+
+			data := filters.ParseCallbackData(update.CallbackQuery.Data)
+			session := *userDb.ShopSession
+
+			if session.Catalog == nil {
+				session.Catalog = &models.Catalog{ID: session.CatalogID}
+			}
+
+			err = db.Model(session.Catalog).Where("id = ?", session.CatalogID).Select()
+			if err != nil {
+				return
+			}
+
+			e.mu.Lock()
+			switch data["a"] {
+			case "removeCatalog":
+				err = removeCatalog(update, e.Client, session, *db)
+			case "removeProduct":
+				err = removeProduct(update, e.Client, session, *db)
+			case "changePhoto":
+				err = changePhoto(update, e.Client, session)
+			case "changePrice":
+				err = changePrice(update, e.Client, session)
+			case "changeName":
+				err = changeName(update, e.Client, session)
+			case "changeDescription":
+				changeDescription(update, e.Client, session)
+			case "createProduct":
+				err = createProduct(update, e.Client, session)
+			}
+			e.mu.Unlock()
+
+			return
+		}
+	}()
+	
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	
+	select {
+	case <-done:
 		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-	err = db.Model(&userDb).
-		WherePK().
-		Relation("ShopSession").
-		Relation("ShopSession.ProductAt").
-		Relation("ShopSession.Catalog").
-		Select()
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("userDb.ShopSession: ", userDb.ShopSession)
-
-	if userDb.ShopSession == nil {
-		return ViewCatalog{Name: "viewCatalog", Client: e.Client}.Run(update)
-	}
-
-	data := filters.ParseCallbackData(update.CallbackQuery.Data)
-	session := *userDb.ShopSession
-
-	switch data["a"] {
-	case "removeCatalog":
-		err = removeCatalog(update, e.Client, session, *db)
-	case "removeProduct":
-		err = removeProduct(update, e.Client, session, *db)
-	case "changePhoto":
-		err = changePhoto(update, e.Client, session)
-	case "changePrice":
-		err = changePrice(update, e.Client, session)
-	case "changeName":
-		err = changeName(update, e.Client, session)
-	case "changeDescription":
-		changeDescription(update, e.Client, session)
-	case "createProduct":
-		err = createProduct(update, e.Client, session)
-	}
-
-	return err
 }
 
+// removeCatalog удаляет каталог и возвращает пользователя к списку каталогов.
 func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession, db pg.DB) error {
 	_, err := db.Model(&models.Catalog{}).Where("id = ?", session.CatalogID).Delete()
 	if err != nil {
@@ -93,6 +154,7 @@ func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 	return Shop{Name: "shop", Client: client}.Run(update)
 }
 
+// removeProduct удаляет текущий товар и возвращает пользователя к просмотру каталога.
 func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession, db pg.DB) error {
 	_, err := db.Model(session.ProductAt).WherePK().Delete()
 	if err != nil {
@@ -112,6 +174,7 @@ func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 	return ViewCatalog{Name: "viewCatalog", Client: client}.Run(update)
 }
 
+// baseForm отображает форму ввода с кнопкой отмены и регистрирует следующий шаг.
 func baseForm(client tgbotapi.BotAPI, update tgbotapi.Update, params map[string]any, formText, CancelMessage string, formHandler controllers.NextStepFunc) error {
 	client.Send(tgbotapi.NewDeleteMessage(GetMessage(update).Chat.ID, GetMessage(update).MessageID))
 
@@ -143,6 +206,7 @@ func baseForm(client tgbotapi.BotAPI, update tgbotapi.Update, params map[string]
 	return nil
 }
 
+// baseFormSuccess очищает следующий шаг и показывает сообщение об успехе.
 func baseFormSuccess(client tgbotapi.BotAPI, update tgbotapi.Update, successMessage string) error {
 	ClearNextStepForUser(update, &client, false)
 
@@ -157,6 +221,7 @@ func baseFormSuccess(client tgbotapi.BotAPI, update tgbotapi.Update, successMess
 	return err
 }
 
+// baseFormResend повторно отображает форму ввода при ошибке.
 func baseFormResend(client tgbotapi.BotAPI, update tgbotapi.Update, formText, CancelMessage string, stepParams map[string]any, formHandler controllers.NextStepFunc) error {
 	msg := tgbotapi.NewMessage(GetMessage(update).Chat.ID, formText)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
@@ -186,12 +251,14 @@ func baseFormResend(client tgbotapi.BotAPI, update tgbotapi.Update, formText, Ca
 	return nil
 }
 
+// changePhoto инициирует изменение фото товара.
 func changePhoto(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
 	return baseForm(client, update, map[string]any{
 		"session": session,
 	}, "Отправьте ниже новое фото товара", "Фото не обновлено", changePhotoHandler)
 }
 
+// changePhotoHandler обрабатывает загрузку нового фото и сохраняет его.
 func changePhotoHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
@@ -214,12 +281,14 @@ func changePhotoHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 	return baseFormSuccess(client, update, "Фото обновлено!")
 }
 
+// changePrice инициирует изменение цены товара.
 func changePrice(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
 	return baseForm(client, update, map[string]any{
 		"session": session,
 	}, "Отправьте ниже новую цену товара", "Цена не обновлена", changePriceHandler)
 }
 
+// changePriceHandler обрабатывает ввод новой цены и сохраняет её.
 func changePriceHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
@@ -243,12 +312,20 @@ func changePriceHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 	return baseFormSuccess(client, update, "Цена обновлена!")
 }
 
+// changeName инициирует изменение названия товара.
+// update - обновление от Telegram API.
+// client - экземпляр Telegram бота.
+// session - текущая сессия просмотра магазина.
 func changeName(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
 	return baseForm(client, update, map[string]any{
 		"session": session,
 	}, "Отправьте ниже новое название товара", "Название не обновлено", changeNameHandler)
 }
 
+// changeNameHandler обрабатывает ввод нового названия товара и сохраняет его.
+// client - экземпляр Telegram бота.
+// update - обновление от Telegram API.
+// stepParams - параметры шага, содержащие session.
 func changeNameHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
@@ -270,12 +347,20 @@ func changeNameHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParam
 	return baseFormSuccess(client, update, "Название обновлено!")
 }
 
+// changeDescription инициирует изменение описания товара.
+// update - обновление от Telegram API.
+// client - экземпляр Telegram бота.
+// session - текущая сессия просмотра магазина.
 func changeDescription(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
 	return baseForm(client, update, map[string]any{
 		"session": session,
 	}, "Отправьте ниже новое описание товара", "Описание не обновлено", changeDescriptionHandler)
 }
 
+// changeDescriptionHandler обрабатывает ввод нового описания товара и сохраняет его.
+// client - экземпляр Telegram бота.
+// update - обновление от Telegram API.
+// stepParams - параметры шага, содержащие session.
 func changeDescriptionHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
@@ -297,12 +382,20 @@ func changeDescriptionHandler(client tgbotapi.BotAPI, update tgbotapi.Update, st
 	return baseFormSuccess(client, update, "Описание обновлено!")
 }
 
+// createProduct инициирует создание нового товара.
+// update - обновление от Telegram API.
+// client - экземпляр Telegram бота.
+// session - текущая сессия просмотра магазина.
 func createProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
 	return baseForm(client, update, map[string]any{
 		"session": session,
 	}, "Отправьте ниже название товара", "Товар не создан", registerNewProductName)
 }
 
+// registerNewProductName обрабатывает ввод названия нового товара при создании.
+// client - экземпляр Telegram бота.
+// update - обновление от Telegram API.
+// stepParams - параметры шага, содержащие session.
 func registerNewProductName(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
@@ -317,6 +410,10 @@ func registerNewProductName(client tgbotapi.BotAPI, update tgbotapi.Update, step
 	return baseForm(client, update, stepParams, "Отправьте ниже цену товара", "Товар не создан", registerNewProductPrice)
 }
 
+// registerNewProductPrice обрабатывает ввод цены нового товара при создании.
+// client - экземпляр Telegram бота.
+// update - обновление от Telegram API.
+// stepParams - параметры шага, содержащие session и productName.
 func registerNewProductPrice(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
@@ -332,6 +429,10 @@ func registerNewProductPrice(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 	return baseForm(client, update, stepParams, "Отправьте ниже описание товара", "Товар не создан", registerNewProductDescription)
 }
 
+// registerNewProductDescription обрабатывает ввод описания нового товара при создании.
+// client - экземпляр Telegram бота.
+// update - обновление от Telegram API.
+// stepParams - параметры шага, содержащие session, productName и productPrice.
 func registerNewProductDescription(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
@@ -346,6 +447,10 @@ func registerNewProductDescription(client tgbotapi.BotAPI, update tgbotapi.Updat
 	return baseForm(client, update, stepParams, "Отправьте ниже фото товара", "Товар не создан", registerNewProductPhoto)
 }
 
+// registerNewProductPhoto обрабатывает загрузку фото нового товара и сохраняет его.
+// client - экземпляр Telegram бота.
+// update - обновление от Telegram API.
+// stepParams - параметры шага, содержащие session, productName, productPrice и productDescription.
 func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
 	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
@@ -358,8 +463,6 @@ func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 
 	db := database.Connect()
 	defer db.Close()
-
-	fmt.Println("stepParams: ", stepParams["session"])
 
 	_, err := db.Model(&models.Product{
 		ImageFileID: photoID,
@@ -375,6 +478,7 @@ func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 	return baseFormSuccess(client, update, "Товар успешно создан!")
 }
 
+// GetName возвращает имя команды EditShop.
 func (e EditShop) GetName() string {
 	return e.Name
 }
