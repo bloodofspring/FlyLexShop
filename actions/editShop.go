@@ -71,14 +71,25 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 				return
 			}
 
-			if userDb.ShopSession == nil {
-				err = ViewCatalog{Name: "viewCatalog", Client: e.Client}.Run(update)
+			if userDb.ShopSession == nil || userDb.ShopSession.CatalogID == 0 {
+				handler := NewViewCatalogHandler(e.Client)
+				handler.mu = e.mu
+				err = handler.Run(update)
 
 				return
 			}
 
 			data := filters.ParseCallbackData(update.CallbackQuery.Data)
 			session := *userDb.ShopSession
+
+			if session.Catalog == nil {
+				session.Catalog = &models.Catalog{ID: session.CatalogID}
+			}
+
+			err = db.Model(session.Catalog).Where("id = ?", session.CatalogID).Select()
+			if err != nil {
+				return
+			}
 
 			e.mu.Lock()
 			switch data["a"] {
