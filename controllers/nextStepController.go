@@ -73,6 +73,8 @@ func (n NextStepManager) RunUpdates(update tgbotapi.Update, client tgbotapi.BotA
 		return ErrMessageIsCommand
 	}
 
+	GlobalNextStepManager.RemoveNextStepAction(key, client, false)
+
 	return action.Func(client, update, action.Params)
 }
 
