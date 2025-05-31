@@ -1,6 +1,6 @@
 services:
   bot:
-    image: ${DOCKERHUB_USERNAME}/chatdetective-bot:latest # Используем образ из DockerHub
+    image: ${DOCKERHUB_USERNAME}/flylex-bot:latest # Используем образ из DockerHub
     container_name: flylex-bot
     restart: unless-stopped
     environment:

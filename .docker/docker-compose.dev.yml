@@ -16,7 +16,7 @@ services:
 
   db:
     image: postgres:15-alpine
-    container_name: chatdetective-db
+    container_name: flylex-db
     restart: unless-stopped
     env_file:
       - ../app/.env # Переменные для базы также через .env
