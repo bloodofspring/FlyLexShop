@@ -55,6 +55,7 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 			defer db.Close()
 
 			pars := filters.ParseCallbackData(update.CallbackQuery.Data)
+			backIsMainMenu := pars["backIsMainMenu"] == "true"
 
 			itemIdStr, ok := pars["itemId"]
 			if !ok {
@@ -124,7 +125,7 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 					itemId = len(items) - 1
 				}
 
-				update.CallbackQuery.Data = fmt.Sprintf("viewCart?itemId=%d", itemId)
+				update.CallbackQuery.Data = fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId, backIsMainMenu)
 
 				handler := NewViewCartHandler(v.Client)
 				handler.mu = v.mu
@@ -136,26 +137,42 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 
 			ok, err = items[itemId].InUserCart(update.CallbackQuery.From.ID, *db)
 			if ok && err == nil {
-				callbackData := fmt.Sprintf("viewCart?itemId=%d&remove=true", itemId)
+				callbackData := fmt.Sprintf("viewCart?itemId=%d&remove=true&backIsMainMenu=%t", itemId, backIsMainMenu)
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
-					{Text: "Удалить из корзины", CallbackData: &callbackData},
+					{Text: "Удалить из корзины❌", CallbackData: &callbackData},
 				})
 			} else if err != nil {
 				return
 			}
 
 			if len(items) > 1 {
-				nextItemCallbackData := fmt.Sprintf("viewCart?itemId=%d", itemId+1)
-				prevItemCallbackData := fmt.Sprintf("viewCart?itemId=%d", itemId-1)
+				nextItemCallbackData := fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId+1, backIsMainMenu)
+				noneCallbackData := "<null>"
+				prevItemCallbackData := fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId-1, backIsMainMenu)
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 					{Text: "⬅️", CallbackData: &prevItemCallbackData},
+					{Text: fmt.Sprintf("%s/%s", NumberToEmoji(itemId+1), NumberToEmoji(len(items))), CallbackData: &noneCallbackData},
 					{Text: "➡️", CallbackData: &nextItemCallbackData},
 				})
 			}
 
-			toShop := "shop"
+			var toShop string
+			var buttonText string
+			var userDb models.TelegramUser
+			err = db.Model(&userDb).
+				Where("user_id = ?", update.CallbackQuery.From.ID).
+				Relation("ShopSession").
+				Select()
+			if err == nil && !backIsMainMenu {
+				toShop = "shop?catId=" + strconv.Itoa(userDb.ShopSession.CatalogID)
+				buttonText = "К списку товаров"
+			} else {
+				toShop = "shop"
+				buttonText = "К списку каталогов"
+			}
+
 			makeOrder := "makeOrder"
-			keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "К списку каталогов", CallbackData: &toShop}, {Text: "Оформить заказ", CallbackData: &makeOrder}})
+			keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: buttonText, CallbackData: &toShop}, {Text: "Оформить заказ✅", CallbackData: &makeOrder}})
 
 			content := fmt.Sprintf("<b>%s</b>\nЦена: %d₽\n\n%s", item.Name, item.Price, item.Description)
 

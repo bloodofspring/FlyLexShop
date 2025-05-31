@@ -51,6 +51,14 @@ func (s Shop) Run(update tgbotapi.Update) error {
 			ClearNextStepForUser(update, &s.Client, true)
 			s.mu.Unlock()
 
+			data := ParseCallData(update.CallbackQuery.Data)
+			if catIdStr, ok := data["catId"]; ok {
+				update.CallbackQuery.Data = "toCat?catId=" + catIdStr
+				handler := NewViewCatalogHandler(s.Client)
+				err = handler.Run(update)
+				return
+			}
+
 			db := database.Connect()
 			defer db.Close()
 
@@ -128,6 +136,27 @@ func (s Shop) Run(update tgbotapi.Update) error {
 				text = "Пока что каталогов не добавлено"
 			} else {
 				text = "Выберите каталог"
+
+				var cartItemCount int
+				var cartItems []models.ShoppingCart
+				cartItemCount, err = db.Model(&cartItems).
+					Where("user_id = ?", update.CallbackQuery.From.ID).
+					Relation("Product").
+					SelectAndCount()
+				if err != nil {
+					return
+				}
+
+				if cartItemCount > 0 {
+					toCartCallbackData := "viewCart?backIsMainMenu=true"
+
+					var total int
+					for _, item := range cartItems {
+						total += item.Product.Price
+					}
+
+					keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: fmt.Sprintf("Корзина (%d₽)", total), CallbackData: &toCartCallbackData}})
+				}
 			}
 
 			if userDb.IsAdmin {
@@ -361,22 +390,24 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 			if ok, err := item.InUserCart(update.CallbackQuery.From.ID, *db); ok && err == nil {
 				callbackData := "toCat?removeFromCart=true"
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
-					{Text: "Удалить из корзины", CallbackData: &callbackData},
+					{Text: "Удалить из корзины❌", CallbackData: &callbackData},
 				})
 			} else if err != nil {
 				return
 			} else {
 				callbackData := "toCat?removeFromCart=false"
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
-					{Text: "Добавить в корзину", CallbackData: &callbackData},
+					{Text: "Добавить в корзину✅", CallbackData: &callbackData},
 				})
 			}
 
 			if productCount > 1 {
 				nextItemCallbackData := "toCat?pageDelta=1"
+				noneCallbackData := "<null>"
 				prevItemCallbackData := "toCat?pageDelta=-1"
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 					{Text: "⬅️", CallbackData: &prevItemCallbackData},
+					{Text: fmt.Sprintf("%s/%s", NumberToEmoji(userDb.ShopSession.Offest+1), NumberToEmoji(productCount)), CallbackData: &noneCallbackData},
 					{Text: "➡️", CallbackData: &nextItemCallbackData},
 				})
 			}

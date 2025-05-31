@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: Deploy
 
 on:
   push:
@@ -10,17 +10,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.SECRET_GIT_TOKEN }}
-          fetch-depth: 0
+        uses: actions/checkout@v4
 
-      - name: Execute update script
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          file: .docker/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/flylex-bot:latest
+
+      - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /home/${{ secrets.SERVER_USERNAME }}/bots/FlyLexShop
-            ./scripts/update.sh
+            cd /var/www/FlyLexBot
+            git pull
+            cd /var/www/FlyLexBot/.docker
+
+            export DB_HOST=${{ vars.DB_HOST }}
+            export DB_PORT=${{ vars.DB_PORT }}
+            export DB_USER=${{ secrets.DB_USER }}
+            export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            export DB_NAME=${{ vars.DB_NAME }}
+            export API_KEY=${{ secrets.API_KEY }}
+            export POSTGRES_USER=${{ secrets.DB_USER }}
+            export POSTGRES_PASSWORD=${{ secrets.DB_PASSWORD }}
+            export POSTGRES_DB=${{ vars.DB_NAME }}
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            export DEBUG=${{ vars.DEBUG }}
+            export ADMIN_CHAT_ID=${{ vars.ADMIN_CHAT_ID }}
+            export PAYMENT_CARD_NUMBER=${{ vars.PAYMENT_CARD_NUMBER }}
+            export PAYMENT_PHONE_NUMBER=${{ vars.PAYMENT_PHONE_NUMBER }}
+            export PAYMENT_BANK=${{ vars.PAYMENT_BANK }}
+
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.prod.yml up -d bot
+            docker system prune -f

@@ -2,6 +2,7 @@ package actions
 
 import (
 	"main/controllers"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -60,4 +61,54 @@ func GetMessageAndType(update tgbotapi.Update) (*tgbotapi.Message, string) {
 func GetMessage(update tgbotapi.Update) *tgbotapi.Message {
 	message, _ := GetMessageAndType(update)
 	return message
+}
+
+func ParseCallData(s string) map[string]string {
+	res := make(map[string]string, 0)
+	if len(strings.Split(s, "?")) != 2 {
+		return res
+	}
+	params := strings.Trim(strings.Split(s, "?")[1], " ")
+
+	for _, p := range strings.Split(params, "&") {
+		if len(strings.Split(p, "=")) != 2 {
+			continue
+		}
+		key := strings.Split(p, "=")[0]
+		value := strings.Split(p, "=")[1]
+
+		res[strings.Trim(key, " ")] = strings.Trim(value, " ")
+	}
+
+	return res
+}
+
+func NumberToEmoji(n int) string {
+	numbersMap := map[int]string{
+		0: "0️⃣",
+		1: "1️⃣",
+		2: "2️⃣",
+		3: "3️⃣",
+		4: "4️⃣",
+		5: "5️⃣",
+		6: "6️⃣",
+		7: "7️⃣",
+		8: "8️⃣",
+		9: "9️⃣",
+	}
+
+	digits := []int{}
+	for n > 0 {
+		digits = append(digits, n%10)
+		n /= 10
+	}
+
+	var result string
+
+	for _, d := range digits {
+		result += numbersMap[d]
+
+	}
+
+	return result
 }

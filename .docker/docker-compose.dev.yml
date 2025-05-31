@@ -1,0 +1,29 @@
+services:
+  bot:
+    build:
+      context: ../app
+      dockerfile: ../.docker/Dockerfile
+      target: ${DOCKER_TARGET:-dev} # Для dev-режима используем отдельный build target
+    container_name: flylex-bot
+    restart: unless-stopped
+    env_file:
+      - ../app/.env # В dev-режиме удобно использовать .env
+    depends_on:
+      - db
+    volumes:
+      - ../app:/app # Для hot reload и локальной разработки
+    command: ["go", "run", "run.go"]
+
+  db:
+    image: postgres:15-alpine
+    container_name: flylex-db
+    restart: unless-stopped
+    env_file:
+      - ../app/.env # Переменные для базы также через .env
+    ports:
+      - "5445:5432"
+    volumes:
+      - ../pgdata:/var/lib/postgresql/data
+
+#volumes:
+#  pgdata:

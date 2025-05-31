@@ -1,0 +1,37 @@
+services:
+  bot:
+    image: ${DOCKERHUB_USERNAME}/flylex-bot:latest # Используем образ из DockerHub
+    container_name: flylex-bot
+    restart: unless-stopped
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - API_KEY=${API_KEY}
+      - DEBUG=${DEBUG}
+      - ADMIN_CHAT_ID=${ADMIN_CHAT_ID}
+      - PAYMENT_CARD_NUMBER=${PAYMENT_CARD_NUMBER}
+      - PAYMENT_PHONE_NUMBER=${PAYMENT_PHONE_NUMBER}
+      - PAYMENT_BANK=${PAYMENT_BANK}
+    depends_on:
+      - db
+    # ports:
+    #   - "${HEALTHCHECK_PORT}:${HEALTHCHECK_PORT}"
+    # Все переменные должны пробрасываться через ENV или .env на сервере, secrets не хардкодятся
+    # ENTRYPOINT уже определён в Dockerfile, command не требуется
+
+  db:
+    image: postgres:15-alpine
+    container_name: flylex-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - "5445:5432"
+    volumes:
+      - /var/lib/postgresql/chat_detective_bot:/var/lib/postgresql/data # Данные хранятся на VPS, не в контейнере
+    # Важно: volume должен быть на VPS, чтобы данные не терялись при пересоздании контейнера 
