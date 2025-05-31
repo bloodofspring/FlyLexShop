@@ -374,9 +374,11 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 
 			if productCount > 1 {
 				nextItemCallbackData := "toCat?pageDelta=1"
+				noneCallbackData := "<null>"
 				prevItemCallbackData := "toCat?pageDelta=-1"
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 					{Text: "⬅️", CallbackData: &prevItemCallbackData},
+					{Text: fmt.Sprintf("%d/%d", userDb.ShopSession.Offest+1, productCount), CallbackData: &noneCallbackData},
 					{Text: "➡️", CallbackData: &nextItemCallbackData},
 				})
 			}

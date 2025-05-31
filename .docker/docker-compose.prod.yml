@@ -31,7 +31,7 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
     ports:
-      - "5555:5432"
+      - "5445:5432"
     volumes:
       - /var/lib/postgresql/chat_detective_bot:/var/lib/postgresql/data # Данные хранятся на VPS, не в контейнере
     # Важно: volume должен быть на VPS, чтобы данные не терялись при пересоздании контейнера 
