@@ -4,7 +4,7 @@ services:
       context: ../app
       dockerfile: ../.docker/Dockerfile
       target: ${DOCKER_TARGET:-dev} # Для dev-режима используем отдельный build target
-    container_name: chatdetective-bot
+    container_name: flylex-bot
     restart: unless-stopped
     env_file:
       - ../app/.env # В dev-режиме удобно использовать .env

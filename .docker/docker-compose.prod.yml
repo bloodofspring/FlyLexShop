@@ -1,7 +1,7 @@
 services:
   bot:
     image: ${DOCKERHUB_USERNAME}/chatdetective-bot:latest # Используем образ из DockerHub
-    container_name: chatdetective-bot
+    container_name: flylex-bot
     restart: unless-stopped
     environment:
       - DB_HOST=${DB_HOST}
@@ -14,19 +14,20 @@ services:
       - WORK_EXAMPLE_FILE_ID_2=${WORK_EXAMPLE_FILE_ID_2}
       - SETUP_INSTRUCTION_FILE_ID=${SETUP_INSTRUCTION_FILE_ID}
       - DEBUG=${DEBUG}
-      - HEALTHCHECK_PORT=${HEALTHCHECK_PORT}
-      - NOTIFICATION_BOT_TOKEN=${NOTIFICATION_BOT_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - ADMIN_CHAT_ID=${ADMIN_CHAT_ID}
+      - PAYMENT_CARD_NUMBER=${PAYMENT_CARD_NUMBER}
+      - PAYMENT_PHONE_NUMBER=${PAYMENT_PHONE_NUMBER}
+      - PAYMENT_BANK=${PAYMENT_BANK}
     depends_on:
       - db
-    ports:
-      - "${HEALTHCHECK_PORT}:${HEALTHCHECK_PORT}"
+    # ports:
+    #   - "${HEALTHCHECK_PORT}:${HEALTHCHECK_PORT}"
     # Все переменные должны пробрасываться через ENV или .env на сервере, secrets не хардкодятся
     # ENTRYPOINT уже определён в Dockerfile, command не требуется
 
   db:
     image: postgres:15-alpine
-    container_name: chatdetective-db
+    container_name: flylex-db
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER}
