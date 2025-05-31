@@ -146,9 +146,11 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 
 			if len(items) > 1 {
 				nextItemCallbackData := fmt.Sprintf("viewCart?itemId=%d", itemId+1)
+				noneCallbackData := "<null>"
 				prevItemCallbackData := fmt.Sprintf("viewCart?itemId=%d", itemId-1)
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 					{Text: "⬅️", CallbackData: &prevItemCallbackData},
+					{Text: fmt.Sprintf("%d/%d", itemId+1, len(items)), CallbackData: &noneCallbackData},
 					{Text: "➡️", CallbackData: &nextItemCallbackData},
 				})
 			}
