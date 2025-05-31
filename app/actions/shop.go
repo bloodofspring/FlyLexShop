@@ -128,6 +128,27 @@ func (s Shop) Run(update tgbotapi.Update) error {
 				text = "Пока что каталогов не добавлено"
 			} else {
 				text = "Выберите каталог"
+
+				var cartItemCount int
+				var cartItems []models.ShoppingCart
+				cartItemCount, err = db.Model(&cartItems).
+					Where("user_id = ?", update.CallbackQuery.From.ID).
+					Relation("Product").
+					SelectAndCount()
+				if err != nil {
+					return
+				}
+
+				if cartItemCount > 0 {
+					toCartCallbackData := "viewCart"
+
+					var total int
+					for _, item := range cartItems {
+						total += item.Product.Price
+					}
+
+					keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: fmt.Sprintf("Корзина (%d₽)", total), CallbackData: &toCartCallbackData}})
+				}
 			}
 
 			if userDb.IsAdmin {
