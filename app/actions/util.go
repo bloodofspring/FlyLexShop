@@ -82,3 +82,33 @@ func ParseCallData(s string) map[string]string {
 
 	return res
 }
+
+func NumberToEmoji(n int) string {
+	numbersMap := map[int]string{
+		0: "0️⃣",
+		1: "1️⃣",
+		2: "2️⃣",
+		3: "3️⃣",
+		4: "4️⃣",
+		5: "5️⃣",
+		6: "6️⃣",
+		7: "7️⃣",
+		8: "8️⃣",
+		9: "9️⃣",
+	}
+
+	digits := []int{}
+	for n > 0 {
+		digits = append(digits, n%10)
+		n /= 10
+	}
+
+	var result string
+
+	for _, d := range digits {
+		result += numbersMap[d]
+
+	}
+
+	return result
+}

@@ -54,9 +54,9 @@ func (m MainMenu) Run(update tgbotapi.Update) error {
 
 			keyboard := tgbotapi.InlineKeyboardMarkup{
 				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
-					{{Text: "Настройки", CallbackData: &settingsCallbackData}},
-					{{Text: "Магазин", CallbackData: &shopCallbackData}},
-					{{Text: "О нас", CallbackData: &aboutCallbackData}},
+					{{Text: "⚙️Настройки", CallbackData: &settingsCallbackData}},
+					{{Text: "🛍️Магазин", CallbackData: &shopCallbackData}},
+					{{Text: "ℹ️О нас", CallbackData: &aboutCallbackData}},
 				},
 			}
 

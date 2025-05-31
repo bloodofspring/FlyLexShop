@@ -79,7 +79,7 @@ type ChangeName struct {
 // Возвращает ошибку, если отправка сообщения не удалась.
 func (c ChangeName) Run(update tgbotapi.Update) error {
 	c.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
-	const text = "<b>Ваше ФИО сейчас: %s</b>\nВведите новое ФИО:"
+	const text = "Ваше ФИО сейчас:\n<b>%s</b>\n\n<i>Введите новое ФИО:</i>"
 
 	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
 	message.ParseMode = "HTML"
@@ -134,14 +134,14 @@ func (c ChangeName) Run(update tgbotapi.Update) error {
 				return err
 			}
 
-			message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "<b>ФИО успешно изменено</b>")
+			message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "<b>ФИО успешно изменено</b>✅")
 			message.ParseMode = "HTML"
 
 			toSettingsCallbackData := "profileSettings?showBackButton=" + strconv.FormatBool(showBackButton)
 			toMainMenuCallbackData := "mainMenu"
 
 			keyboard := [][]tgbotapi.InlineKeyboardButton{
-				{{Text: "К настройкам", CallbackData: &toSettingsCallbackData}},
+				{{Text: "⚙️Настройки", CallbackData: &toSettingsCallbackData}},
 			}
 
 			if !showBackButton {
@@ -177,7 +177,7 @@ type ChangePhone struct {
 
 func (c ChangePhone) Run(update tgbotapi.Update) error {
 	c.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
-	const text = "<b>Ваш номер телефона сейчас: %v(%v)%v-%v</b>\nВведите новый номер телефона:"
+	const text = "Ваш номер телефона сейчас:\n<b>%v(%v)%v-%v</b>\n\n<i>Введите новый номер телефона:</i>"
 
 	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
 	message.ParseMode = "HTML"
@@ -249,14 +249,14 @@ func (c ChangePhone) Run(update tgbotapi.Update) error {
 				return err
 			}
 
-			message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "<b>Номер телефона успешно изменен</b>")
+			message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "<b>Номер телефона успешно изменен</b>✅")
 			message.ParseMode = "HTML"
 
 			toSettingsCallbackData := "profileSettings?showBackButton=" + strconv.FormatBool(showBackButton)
 			toMainMenuCallbackData := "mainMenu"
 
 			keyboard := [][]tgbotapi.InlineKeyboardButton{
-				{{Text: "К настройкам", CallbackData: &toSettingsCallbackData}},
+				{{Text: "⚙️Настройки", CallbackData: &toSettingsCallbackData}},
 			}
 
 			if !showBackButton {
@@ -292,7 +292,7 @@ type ChangeDeliveryAddress struct {
 
 func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 	c.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
-	const text = "<b>Ваш адрес доставки сейчас: %s</b>\nВведите новый адрес доставки:"
+	const text = "Ваш адрес доставки сейчас:\n<b>%s</b>\n\n<i>Введите новый адрес доставки:</i>"
 
 	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
 	message.ParseMode = "HTML"
@@ -347,14 +347,14 @@ func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 				return err
 			}
 
-			message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "<b>Адрес доставки успешно изменен</b>")
+			message := tgbotapi.NewMessage(stepUpdate.Message.Chat.ID, "<b>Адрес доставки успешно изменен</b>✅")
 			message.ParseMode = "HTML"
 
 			toSettingsCallbackData := "profileSettings?showBackButton=" + strconv.FormatBool(showBackButton)
 			toMainMenuCallbackData := "mainMenu"
 
 			keyboard := [][]tgbotapi.InlineKeyboardButton{
-				{{Text: "К настройкам", CallbackData: &toSettingsCallbackData}},
+				{{Text: "⚙️Настройки", CallbackData: &toSettingsCallbackData}},
 			}
 
 			if !showBackButton {
@@ -423,7 +423,7 @@ func (c ChangeDeliveryService) GetKeyboard(userDb models.TelegramUser, showBackB
 func (c ChangeDeliveryService) Run(update tgbotapi.Update) error {
 	ClearNextStepForUser(update, &c.Client, true)
 
-	const text = "<b>Ваш сервис доставки сейчас: %s</b>\nВыберите новый сервис доставки:"
+	const text = "Ваш сервис доставки сейчас:\n<b>%s</b>\n\n<i>Выберите новый сервис доставки:</i>"
 
 	message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "")
 	message.ParseMode = "HTML"
@@ -444,7 +444,7 @@ func (c ChangeDeliveryService) Run(update tgbotapi.Update) error {
 
 	toSettingsCallbackData := "profileSettings?showBackButton=" + strconv.FormatBool(showBackButton)
 	message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
-		InlineKeyboard: append(c.GetKeyboard(user, showBackButton), []tgbotapi.InlineKeyboardButton{{Text: "К настройкам", CallbackData: &toSettingsCallbackData}}),
+		InlineKeyboard: append(c.GetKeyboard(user, showBackButton), []tgbotapi.InlineKeyboardButton{{Text: "⚙️Настройки", CallbackData: &toSettingsCallbackData}}),
 	}
 
 	_, err = c.Client.Send(message)

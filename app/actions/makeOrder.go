@@ -86,8 +86,8 @@ func (m MakeOrder) Run(update tgbotapi.Update) error {
 			msg.ParseMode = "HTML"
 
 			msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{
-				{Text: "Да, все верно", CallbackData: &processOrderCallbackData},
-				{Text: "Изменить данные", CallbackData: &changeDataCallbackData},
+				{Text: "Да, все верно✅", CallbackData: &processOrderCallbackData},
+				{Text: "Изменить данные⚙️", CallbackData: &changeDataCallbackData},
 			}}}
 
 			m.mu.Lock()
