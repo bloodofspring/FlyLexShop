@@ -6,12 +6,12 @@ import (
 	"main/controllers"
 	"main/database"
 	"main/database/models"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/joho/godotenv"
 )
 
 const (
@@ -65,14 +65,8 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 		
 				return
 			}
-		
-			var envFile map[string]string
-			envFile, err = godotenv.Read(".env")
-			if err != nil {
-				return
-			}
-		
-			adminChatID := envFile["admin_chat_id"]
+
+			adminChatID := os.Getenv("ADMIN_CHAT_ID")
 		
 			db := database.Connect()
 			defer db.Close()
@@ -205,8 +199,7 @@ func (p ProcessOrder) Run(update tgbotapi.Update) error {
 				return
 			}
 
-			envFile, _ := godotenv.Read(".env")
-			pageText := fmt.Sprintf(processOrderPageText, totalPrice, envFile["payment_card_number"], envFile["payment_phone_number"], envFile["payment_bank"])
+			pageText := fmt.Sprintf(processOrderPageText, totalPrice, os.Getenv("PAYMENT_CARD_NUMBER"), os.Getenv("PAYMENT_PHONE_NUMBER"), os.Getenv("PAYMENT_BANK"))
 
 			msg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, pageText)
 			msg.ParseMode = "HTML"

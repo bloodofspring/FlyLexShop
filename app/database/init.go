@@ -2,19 +2,18 @@ package database
 
 import (
 	"main/database/models"
+	"os"
 
 	"github.com/go-pg/pg/v10"
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/joho/godotenv"
 )
 
 func Connect() *pg.DB {
-	envFile, _ := godotenv.Read(".env")
 	db := pg.Connect(&pg.Options{
-		Addr:     envFile["DB_HOST"] + ":" + envFile["DB_PORT"],
-		User:     envFile["DB_USER"],
-		Password: envFile["DB_PASSWORD"],
-		Database: envFile["DB_NAME"],
+		Addr:     os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT"),
+		User:     os.Getenv("DB_USER"),
+		Password: os.Getenv("DB_PASSWORD"),
+		Database: os.Getenv("DB_NAME"),
 	})
 
 	return db

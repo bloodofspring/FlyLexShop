@@ -30,9 +30,9 @@ const (
 
 
 func connect() *tgbotapi.BotAPI {
-	envFile, _ := godotenv.Read(".env")
+	_ = godotenv.Load() // Для dev-режима подхватит .env, в проде проигнорирует
 
-	bot, err := tgbotapi.NewBotAPI(envFile["API_KEY"])
+	bot, err := tgbotapi.NewBotAPI(os.Getenv("API_KEY"))
 	if err != nil {
 		panic(err)
 	}
