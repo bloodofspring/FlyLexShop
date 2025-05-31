@@ -23,7 +23,7 @@ var ViewCartFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 }
 
 var ProfileSettingsFilter = func(update tgbotapi.Update, client tgbotapi.BotAPI) bool {
-	if update.CallbackQuery.Data == "profileSettings" {
+	if strings.HasPrefix(update.CallbackQuery.Data, "profileSettings") {
 		controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{ChatID: update.CallbackQuery.Message.Chat.ID, UserID: update.CallbackQuery.From.ID}, client, true)
 		return true
 	}
@@ -44,15 +44,15 @@ var AboutFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 }
 
 var ChangeNameFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
-	return update.CallbackQuery.Data == "changeName"
+	return strings.HasPrefix(update.CallbackQuery.Data, "changeName")
 }
 
 var ChangePhoneFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
-	return update.CallbackQuery.Data == "changePhone"
+	return strings.HasPrefix(update.CallbackQuery.Data, "changePhone")
 }
 
 var ChangeDeliveryAddressFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
-	return update.CallbackQuery.Data == "changeDeliveryAddress"
+	return strings.HasPrefix(update.CallbackQuery.Data, "changeDeliveryAddress")
 }
 
 var MakeOrderFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {

@@ -20,7 +20,7 @@ var (
 	// processOrderCallbackData - callback data для обработки заказа
 	processOrderCallbackData = "processOrder"
 	// changeDataCallbackData - callback data для изменения данных пользователя
-	changeDataCallbackData = "profileSettings"
+	changeDataCallbackData = "profileSettings?showBackButton=true"
 )
 
 // MakeOrder представляет собой структуру для оформления заказа
