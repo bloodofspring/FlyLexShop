@@ -107,6 +107,8 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 				changeDescription(update, e.Client, session)
 			case "createProduct":
 				err = createProduct(update, e.Client, session)
+			case "changeAvailbleForPurchase":
+				err = changeAvailbleForPurchase(update, e.Client, session)
 			}
 			e.mu.Unlock()
 
@@ -310,6 +312,35 @@ func changePriceHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 	}
 
 	return baseFormSuccess(client, update, "Цена обновлена!")
+}
+
+func changeAvailbleForPurchase(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
+	return baseForm(client, update, map[string]any{
+		"session": session,
+	}, "Отправьте ниже количество товаров в наличии", "Количество товаров не обновлено", changeAvailbleForPurchaseHandler)
+}
+
+func changeAvailbleForPurchaseHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
+	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
+	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
+
+	availbleForPurchase := update.Message.Text
+
+	availbleForPurchaseInt, err := strconv.Atoi(availbleForPurchase)
+
+	if err != nil {
+		return baseFormResend(client, update, "Отправьте ниже количество товаров в наличии (целое число!)", "Количество товаров не обновлено", stepParams, changeAvailbleForPurchaseHandler)
+	}
+
+	db := database.Connect()
+	defer db.Close()
+
+	_, err = db.Model(stepParams["session"].(models.ShopViewSession).ProductAt).WherePK().Set("availble_for_purchase = ?", availbleForPurchaseInt).Update()
+	if err != nil {
+		return err
+	}
+
+	return baseFormSuccess(client, update, "Количество товаров в наличии обновлено!")
 }
 
 // changeName инициирует изменение названия товара.
