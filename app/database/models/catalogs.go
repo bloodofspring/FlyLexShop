@@ -6,6 +6,9 @@ import (
 
 type Catalog struct {
 	ID   int    `json:"id"`
+
+	CreatedAt int64 `pg:",default:extract(epoch from now())"`
+
 	Name string `json:"name"`
 
 	Products    []*Product       `pg:"rel:has-many,join_fk:catalog_id"`
@@ -25,6 +28,9 @@ func (c *Catalog) GetProductCount(db *pg.DB) (int, error) {
 
 type Product struct {
 	ID          int    `json:"id"`
+
+	CreatedAt int64 `pg:",default:extract(epoch from now())"`
+
 	ImageFileID string `json:"image_file_id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`

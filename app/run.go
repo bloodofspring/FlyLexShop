@@ -71,6 +71,8 @@ func getBotActions(bot tgbotapi.BotAPI) handlers.ActiveHandlers {
 		handlers.CallbackQueryHandler.Product(actions.NewAddCatalogHandler(bot), []handlers.Filter{filters.AddCatalogFilter}),
 		handlers.CallbackQueryHandler.Product(actions.NewEditShopHandler(bot), []handlers.Filter{filters.EditShopFilter}),
 
+		handlers.CallbackQueryHandler.Product(actions.NewChangeCatalogNameHandler(bot), []handlers.Filter{filters.ChangeCatalogNameFilter}),
+
 		handlers.CallbackQueryHandler.Product(actions.NewCancelHandler(bot), []handlers.Filter{filters.CancelFilter}),
 	}}
 
