@@ -21,6 +21,7 @@ var (
 	processOrderCallbackData = "processOrder"
 	// changeDataCallbackData - callback data для изменения данных пользователя
 	changeDataCallbackData = "profileSettings?showBackButton=true"
+	toListofCats = "shop"
 )
 
 // MakeOrder представляет собой структуру для оформления заказа
@@ -88,6 +89,8 @@ func (m MakeOrder) Run(update tgbotapi.Update) error {
 			msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{
 				{Text: "Да, все верно✅", CallbackData: &processOrderCallbackData},
 				{Text: "Изменить данные⚙️", CallbackData: &changeDataCallbackData},
+			}, {
+				{Text: "К списку каталогов", CallbackData: &toListofCats},
 			}}}
 
 			m.mu.Lock()

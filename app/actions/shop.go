@@ -111,7 +111,7 @@ func (s Shop) Run(update tgbotapi.Update) error {
 			}
 
 			catalogs := []models.Catalog{}
-			err = db.Model(&catalogs).Select()
+			err = db.Model(&catalogs).Order("created_at ASC").Select()
 			if err != nil {
 				return
 			}
@@ -161,7 +161,12 @@ func (s Shop) Run(update tgbotapi.Update) error {
 
 			if userDb.IsAdmin {
 				addCatalogCallbackData := "addCatalog"
-				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "Добавить каталог", CallbackData: &addCatalogCallbackData}})
+				changeCatalogNameCallbackData := "changeCatalogName"
+				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
+					{Text: "Добавить каталог", CallbackData: &addCatalogCallbackData},
+				}, []tgbotapi.InlineKeyboardButton{
+					{Text: "Изменить каталог", CallbackData: &changeCatalogNameCallbackData},
+				})
 			}
 
 			toMainMenuCallbackData := "mainMenu"
@@ -349,6 +354,7 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 			var item models.Product
 			err = db.Model(&item).
 				Where("catalog_id = ?", userDb.ShopSession.Catalog.ID).
+				Order("created_at ASC").
 				Offset(userDb.ShopSession.Offest).
 				Limit(1).
 				Select()

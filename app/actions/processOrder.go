@@ -134,6 +134,12 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 			}
 		
 			successMsg := tgbotapi.NewMessage(update.Message.Chat.ID, "Спасибо, администратор скоро проверит оплату!")
+			mainMenuCallbackData := "mainMenu"
+			successMsg.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
+				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
+					{{Text: "На главную", CallbackData: &mainMenuCallbackData}},
+				},
+			}
 			mu.Lock()
 			_, err = client.Send(successMsg)
 			mu.Unlock()
