@@ -332,6 +332,10 @@ func changeAvailbleForPurchaseHandler(client tgbotapi.BotAPI, update tgbotapi.Up
 		return baseFormResend(client, update, "Отправьте ниже количество товаров в наличии (целое число!)", "Количество товаров не обновлено", stepParams, changeAvailbleForPurchaseHandler)
 	}
 
+	if availbleForPurchaseInt < 0 {
+		return baseFormResend(client, update, "Количество товаров в наличии не может быть отрицательным", "Количество товаров не обновлено", stepParams, changeAvailbleForPurchaseHandler)
+	}
+
 	db := database.Connect()
 	defer db.Close()
 

@@ -145,7 +145,7 @@ func (u *TelegramUser) GetTotalCartPrice(db pg.DB) (int, error) {
 		if err != nil {
 			continue
 		}
-		totalPrice += product.Price
+		totalPrice += product.Price * item.ProductCount
 	}
 	return totalPrice, nil
 }
