@@ -69,6 +69,12 @@ func (p PaymentVerdict) Run(update tgbotapi.Update) error {
 
 			if paymentAccepted == "true" {
 				message := tgbotapi.NewMessage(userId, paymentAcceptedMessageText)
+				mainMenuCallbackData := "mainMenu"
+				message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
+					InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
+						{{Text: "На главную", CallbackData: &mainMenuCallbackData}},
+					},
+				}
 				p.mu.Lock()
 				_, err = p.Client.Send(message)
 				p.mu.Unlock()
@@ -95,6 +101,12 @@ func (p PaymentVerdict) Run(update tgbotapi.Update) error {
 			}
 
 			message := tgbotapi.NewMessage(userId, paymentRejectedMessageText)
+			mainMenuCallbackData := "mainMenu"
+			message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
+				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
+					{{Text: "На главную", CallbackData: &mainMenuCallbackData}},
+				},
+			}
 			p.mu.Lock()
 			_, err = p.Client.Send(message)
 			p.mu.Unlock()
