@@ -444,6 +444,21 @@ func registerNewProductDescription(client tgbotapi.BotAPI, update tgbotapi.Updat
 	}
 
 	stepParams["productDescription"] = description
+	return baseForm(client, update, stepParams, "Отправьте ниже количество доступных в наличии товаров", "Товар не создан", registerNewProductAvailbleForPurchase)
+}
+
+func registerNewProductAvailbleForPurchase(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
+	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
+	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
+
+	availbleForPurchase := update.Message.Text
+
+	availbleForPurchaseInt, err := strconv.Atoi(availbleForPurchase)
+	if err != nil {
+		return baseFormResend(client, update, "Количество доступных в наличии товаров должно быть числом", "Товар не создан", stepParams, registerNewProductAvailbleForPurchase)
+	}
+
+	stepParams["productAvailbleForPurchase"] = availbleForPurchaseInt
 	return baseForm(client, update, stepParams, "Отправьте ниже фото товара", "Товар не создан", registerNewProductPhoto)
 }
 
@@ -469,6 +484,7 @@ func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 		Name:        stepParams["productName"].(string),
 		Price:       stepParams["productPrice"].(int),
 		Description: stepParams["productDescription"].(string),
+		AvailbleForPurchase: stepParams["productAvailbleForPurchase"].(int),
 		CatalogID:   stepParams["session"].(models.ShopViewSession).Catalog.ID,
 	}).Insert()
 	if err != nil {

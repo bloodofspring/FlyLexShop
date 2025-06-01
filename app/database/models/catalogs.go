@@ -37,6 +37,8 @@ type Product struct {
 	Price       int    `json:"price"`
 	CatalogID   int    `json:"catalog_id"`
 
+	AvailbleForPurchase int
+
 	Catalog      *Catalog           `pg:"rel:has-one,fk:catalog_id"`
 	ShopSessions []*ShopViewSession `pg:"rel:has-many,join_fk:product_at_id"`
 }
