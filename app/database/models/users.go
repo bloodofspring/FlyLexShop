@@ -69,6 +69,68 @@ func (u *TelegramUser) GetOrCreate(apiUser *tgbotapi.User, db pg.DB) error {
 	return u.UpdateProfileData(apiUser, &db)
 }
 
+func (u *TelegramUser) GetProductInCartCount(db pg.DB, productID int) (int, error) {
+	var count int
+	count, err := db.Model(&ShoppingCart{}).
+		Where("user_id = ?", u.ID).
+		Where("product_id = ?", productID).
+		Count()
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (u *TelegramUser) AddProductToCart(db pg.DB, productID int) error {
+	if productInCartCount, err := u.GetProductInCartCount(db, productID); err != nil {
+		return err
+	} else if productInCartCount > 0 {
+		_, err := db.Model(&ShoppingCart{}).
+			Where("user_id = ?", u.ID).
+			Where("product_id = ?", productID).
+			Set("product_count = product_count + 1").
+			Update()
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err := db.Model(&ShoppingCart{
+			UserID:    u.ID,
+			ProductID: productID,
+		}).Insert()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (u *TelegramUser) RemoveProductFromCart(db pg.DB, productID int) error {
+	if productInCartCount, err := u.GetProductInCartCount(db, productID); err != nil {
+		return err
+	} else if productInCartCount > 1 {
+		_, err := db.Model(&ShoppingCart{}).
+			Where("user_id = ?", u.ID).
+			Where("product_id = ?", productID).
+			Set("product_count = product_count - 1").
+			Update()
+		if err != nil {
+			return err
+		}
+	} else if productInCartCount == 1 {
+		_, err = db.Model(&ShoppingCart{}).
+			Where("user_id = ?", u.ID).
+			Where("product_id = ?", productID).
+			Delete()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (u *TelegramUser) GetTotalCartPrice(db pg.DB) (int, error) {
 	cart := []ShoppingCart{}
 	err := db.Model(&cart).Where("user_id = ?", u.ID).Select()
@@ -94,4 +156,5 @@ type ShoppingCart struct {
 	User      *TelegramUser `pg:"rel:has-one,fk:user_id"`
 	ProductID int           `json:"product_id"`
 	Product   *Product      `pg:"rel:has-one,fk:product_id"`
+	ProductCount int        `pg:",default:1" json:"product_count"`
 }

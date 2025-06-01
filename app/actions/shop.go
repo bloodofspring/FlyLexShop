@@ -368,23 +368,21 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 				return
 			}
 
-			remove, ok := data["removeFromCart"]
+			// ToDo: Remake
+			cartDelta, ok := data["cartDelta"]
 			if ok {
-				removeBool, err := strconv.ParseBool(remove)
+				cartDeltaInt, err := strconv.Atoi(cartDelta)
 				if err != nil {
 					return
 				}
 
-				if removeBool {
-					_, err = db.Model(&models.ShoppingCart{}).Where("user_id = ?", update.CallbackQuery.From.ID).Where("product_id = ?", item.ID).Delete()
+				if cartDeltaInt == 1 {
+					err := userDb.AddProductToCart(*db, item.ID)
 					if err != nil {
 						return
 					}
-				} else {
-					_, err = db.Model(&models.ShoppingCart{
-						UserID:    update.CallbackQuery.From.ID,
-						ProductID: item.ID,
-					}).Insert()
+				} else if cartDeltaInt == -1 {
+					err := userDb.RemoveProductFromCart(*db, item.ID)
 					if err != nil {
 						return
 					}
@@ -394,14 +392,29 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 			keyboard := [][]tgbotapi.InlineKeyboardButton{}
 
 			if ok, err := item.InUserCart(update.CallbackQuery.From.ID, *db); ok && err == nil {
-				callbackData := "toCat?removeFromCart=true"
+				add1CallbackData := "toCat?cartDelta=1"
+				rem1CallbackData := "toCat?cartDelta=-1"
+				nullCallbackData := "<null>"
+
+				productInCartCount, err := userDb.GetProductInCartCount(*db, item.ID)
+				if err != nil {
+					return
+				}
+
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
-					{Text: "Удалить из корзины❌", CallbackData: &callbackData},
+					{Text: "-", CallbackData: &rem1CallbackData},
+					{Text: fmt.Sprintf("%s/%s", NumberToEmoji(productInCartCount), NumberToEmoji(item.AvailbleForPurchase)), CallbackData: &nullCallbackData},
 				})
+
+				if productInCartCount <= item.AvailbleForPurchase {
+					keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
+						{Text: "+", CallbackData: &add1CallbackData},
+					})
+				}
 			} else if err != nil {
 				return
-			} else {
-				callbackData := "toCat?removeFromCart=false"
+			} else if item.AvailbleForPurchase > 0 {
+				callbackData := "toCat?cartDelta=1"
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 					{Text: "Добавить в корзину✅", CallbackData: &callbackData},
 				})
@@ -433,6 +446,7 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 					changeNameCallbackData        = "editShop?a=changeName"
 					changeDescriptionCallbackData = "editShop?a=changeDescription"
 					addProductCallbackData        = "editShop?a=createProduct"
+					changeAvailbleForPurchaseCallbackData = "editShop?a=changeAvailbleForPurchase"
 				)
 				keyboard = append(
 					keyboard,
@@ -450,6 +464,7 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 					},
 					[]tgbotapi.InlineKeyboardButton{
 						{Text: "Добавить товар", CallbackData: &addProductCallbackData},
+						{Text: "Изменить кол-во товаров", CallbackData: &changeAvailbleForPurchaseCallbackData},
 					},
 				)
 			}
@@ -458,7 +473,14 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 			toCart := "viewCart"
 			keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: "К списку каталогов", CallbackData: &toListOfCats}, {Text: fmt.Sprintf("Корзина (%d₽)", totalPrice), CallbackData: &toCart}})
 
-			content := fmt.Sprintf("<b>%s</b>\nЦена: %d₽\n\n%s", item.Name, item.Price, item.Description)
+			var availablityContent string
+			if item.AvailbleForPurchase > 0 {
+				availablityContent = fmt.Sprintf("В наличии: %d шт.", item.AvailbleForPurchase)
+			} else {
+				availablityContent = "Нет в наличии❌"
+			}
+
+			content := fmt.Sprintf("<b>%s</b>\nЦена: %d₽\n%s\n\n%s", item.Name, item.Price, availablityContent, item.Description)
 
 			if update.CallbackQuery.Message.Caption != "" {
 				editMeida := tgbotapi.EditMessageMediaConfig{
