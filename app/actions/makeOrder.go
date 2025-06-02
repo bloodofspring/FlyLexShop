@@ -71,6 +71,23 @@ func (m MakeOrder) Run(update tgbotapi.Update) error {
 				return
 			}
 
+			var cartChanged bool
+			cartChanged, err = user.TidyCart(*db)
+			if err != nil {
+				return
+			}
+
+			if cartChanged {
+				_, err := m.Client.Request(tgbotapi.CallbackConfig{
+					CallbackQueryID: update.CallbackQuery.ID,
+					Text:            "Количество некторых товаров уменьшилось. Проверьте корзину перед покупкой",
+					ShowAlert:       true,
+				})
+				if err != nil {
+					return
+				}
+			}
+
 			var totalPrice int
 			totalPrice, err = user.GetTotalCartPrice(*db)
 			if err != nil {

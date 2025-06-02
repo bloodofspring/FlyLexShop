@@ -114,9 +114,17 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 			photoMsg := tgbotapi.NewPhoto(chatID, tgbotapi.FileID(update.Message.Photo[len(update.Message.Photo)-1].FileID))
 			photoMsg.ParseMode = "HTML"
 			photoMsg.Caption = cartDesc
+
+			var transaction models.Transaction
+			transaction, err, _ = (&models.TelegramUser{ID: update.Message.From.ID}).GetOrCreateTransaction(*db)
+			if err != nil {
+				return
+			}
+
+			db.Model(&transaction).WherePK().Set("is_waiting_for_approval = ?", true).Update()
 		
-			acceptData := "paymentVerdict?ok=true&userId=" + strconv.FormatInt(update.Message.From.ID, 10)
-			rejectData := "paymentVerdict?ok=false&userId=" + strconv.FormatInt(update.Message.From.ID, 10)
+			acceptData := fmt.Sprintf("paymentVerdict?ok=true&tid=%d&userId=%d", transaction.ID, update.Message.From.ID)
+			rejectData := fmt.Sprintf("paymentVerdict?ok=false&tid=%d&userId=%d", transaction.ID, update.Message.From.ID)
 			photoMsg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
 				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
 					{
@@ -203,6 +211,34 @@ func (p ProcessOrder) Run(update tgbotapi.Update) error {
 
 			user := models.TelegramUser{ID: update.CallbackQuery.From.ID}
 			err = user.Get(*db)
+			if err != nil {
+				return
+			}
+
+			var cartChanged bool
+			cartChanged, err = user.TidyCart(*db)
+			if err != nil {
+				return
+			}
+
+			if cartChanged {
+				_, err := p.Client.Request(tgbotapi.CallbackConfig{
+					CallbackQueryID: update.CallbackQuery.ID,
+					Text:            "Количество некторых товаров уменьшилось. Проверьте корзину перед покупкой",
+					ShowAlert:       true,
+				})
+				if err != nil {
+					return
+				}
+			}
+
+			var transaction models.Transaction
+			transaction, err, _ = user.GetOrCreateTransaction(*db)
+			if err != nil {
+				return
+			}
+
+			err = user.DecreaseProductAvailbleForPurchase(*db, transaction.ID)
 			if err != nil {
 				return
 			}

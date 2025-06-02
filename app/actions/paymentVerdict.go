@@ -97,6 +97,27 @@ func (p PaymentVerdict) Run(update tgbotapi.Update) error {
 					return
 				}
 
+				var transactionID int
+				transactionID, err = strconv.Atoi(data["tid"])
+				if err != nil {
+					return
+				}
+				err = (&models.TelegramUser{ID: userId}).DropTransaction(*db, transactionID)
+
+				return 
+			}
+
+			db := database.Connect()
+			defer db.Close()
+
+			var transactionID int
+			transactionID, err = strconv.Atoi(data["tid"])
+			if err != nil {
+				return
+			}
+			err = (&models.TelegramUser{ID: userId}).DropTransaction(*db, transactionID)
+
+			if err != nil {
 				return
 			}
 

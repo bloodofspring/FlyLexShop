@@ -214,6 +214,7 @@ func (u *TelegramUser) TidyCart(db pg.DB) (bool, error) {
 	err = db.Model(&transaction).
 		WherePK().
 		Relation("AddedProducts").
+		Relation("AddedProducts.Product").
 		Select()
 	if err != nil {
 		return false, err
@@ -248,6 +249,91 @@ func (u *TelegramUser) TidyCart(db pg.DB) (bool, error) {
 	}
 
 	return cartChanged, nil
+}
+
+func (u *TelegramUser) DropTransaction(db pg.DB, transactionID int) error {
+	var transaction Transaction
+	err := db.Model(&transaction).Where("id = ?", transactionID).Select()
+	if err != nil {
+		return err
+	}
+
+	err = db.Model(&transaction).
+		WherePK().
+		Relation("AddedProducts").
+		Relation("AddedProducts.Product").
+		Select()
+	if err != nil {
+		return err
+	}
+
+	for _, item := range transaction.AddedProducts {
+		db.Model(&item).WherePK().Delete()
+	}
+
+	_, err = db.Model(&transaction).WherePK().Delete()
+
+	return err
+}
+
+func (u *TelegramUser) DecreaseProductAvailbleForPurchase(db pg.DB, transactionID int) error {
+	var transaction Transaction
+	err := db.Model(&transaction).Where("id = ?", transactionID).Select()
+
+	if err != nil {
+		return err
+	}
+
+	err = db.Model(&transaction).
+		WherePK().
+		Relation("AddedProducts").
+		Relation("AddedProducts.Product").
+		Select()
+	if err != nil {
+		return err
+	}
+
+	for _, item := range transaction.AddedProducts {
+		_, _err := db.Model(&item.Product).
+			WherePK().
+			Set("availble_for_purchase = ?", item.Product.AvailbleForPurchase - item.ProductCount).
+			Update()
+		if _err != nil {
+			return _err
+		}
+	}
+
+	return nil
+}
+
+func (u *TelegramUser) IncreaseProductAvailbleForPurchase(db pg.DB, transactionID int) error {
+	var transaction Transaction
+	err := db.Model(&transaction).Where("id = ?", transactionID).Select()
+
+	if err != nil {
+		return err
+	}
+
+	err = db.Model(&transaction).
+		WherePK().
+		Relation("AddedProducts").
+		Relation("AddedProducts.Product").
+		Select()
+	if err != nil {
+		return err
+	}
+
+	for _, item := range transaction.AddedProducts {
+		_, _err := db.Model(&item.Product).
+			WherePK().
+			Set("availble_for_purchase = ?", item.Product.AvailbleForPurchase + item.ProductCount).
+			Update()
+		if _err != nil {
+			return _err
+		}
+	}
+
+	return nil
 }
 
 func (u *TelegramUser) GetTotalCartPrice(db pg.DB) (int, error) {
