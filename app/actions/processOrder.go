@@ -19,7 +19,7 @@ const (
 	processOrderPageText = "<b>Итог:</b> %d\n\nОплата осуществляется переводом по номеру карты или телефона:\n|_<b>Номер карты:</b> %s\n|_<b>Номер телефона:</b> %s\n|_<b>Банк:</b> %s\n\n<b>!!!После оплаты пришлите боту чек на проверку сообщением ниже!!!</b>"
 )
 
-// RegisterPaymentPhoto обрабатывает фотографию чека об оплате
+// RegisterPaymentPhoto обрабатывает фотографию чека об оплате или PDF файл
 // client - экземпляр Telegram бота
 // update - обновление от Telegram API
 // stepParams - параметры шага обработки заказа
@@ -39,8 +39,12 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 		case <-ctx.Done():
 			return
 		default:
-			if update.Message == nil || update.Message.Photo == nil {
-				message := tgbotapi.NewMessage(update.Message.Chat.ID, "Пожалуйста, пришлите фото чека на проверку.")
+			// Проверяем наличие фото или PDF документа
+			hasValidAttachment := (update.Message != nil && update.Message.Photo != nil) ||
+				(update.Message != nil && update.Message.Document != nil && update.Message.Document.MimeType == "application/pdf")
+
+			if !hasValidAttachment {
+				message := tgbotapi.NewMessage(update.Message.Chat.ID, "Пожалуйста, пришлите фото чека или PDF файл на проверку.")
 				toMainMenuCallbackData := "mainMenu?resetAvailablity=true"
 				message.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
 					InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
@@ -110,9 +114,18 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 				return
 			}
 
-			photoMsg := tgbotapi.NewPhoto(chatID, tgbotapi.FileID(update.Message.Photo[len(update.Message.Photo)-1].FileID))
-			photoMsg.ParseMode = "HTML"
-			photoMsg.Caption = cartDesc
+			var msg tgbotapi.Chattable
+			if update.Message.Photo != nil {
+				photoMsg := tgbotapi.NewPhoto(chatID, tgbotapi.FileID(update.Message.Photo[len(update.Message.Photo)-1].FileID))
+				photoMsg.ParseMode = "HTML"
+				photoMsg.Caption = cartDesc
+				msg = photoMsg
+			} else {
+				docMsg := tgbotapi.NewDocument(chatID, tgbotapi.FileID(update.Message.Document.FileID))
+				docMsg.ParseMode = "HTML"
+				docMsg.Caption = cartDesc
+				msg = docMsg
+			}
 
 			var transaction models.Transaction
 			transaction, err, _ = user.GetOrCreateTransaction(*db)
@@ -124,7 +137,9 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 
 			acceptData := fmt.Sprintf("paymentVerdict?ok=true&tid=%d&userId=%d", transaction.ID, update.Message.From.ID)
 			rejectData := fmt.Sprintf("paymentVerdict?ok=false&tid=%d&userId=%d", transaction.ID, update.Message.From.ID)
-			photoMsg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
+
+			// Создаем клавиатуру для обоих типов сообщений
+			keyboard := tgbotapi.InlineKeyboardMarkup{
 				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
 					{
 						{Text: "Принять заявку", CallbackData: &acceptData},
@@ -133,8 +148,17 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 				},
 			}
 
+			// Устанавливаем клавиатуру в зависимости от типа сообщения
+			if photoMsg, ok := msg.(tgbotapi.PhotoConfig); ok {
+				photoMsg.ReplyMarkup = keyboard
+				msg = photoMsg
+			} else if docMsg, ok := msg.(tgbotapi.DocumentConfig); ok {
+				docMsg.ReplyMarkup = keyboard
+				msg = docMsg
+			}
+
 			mu.Lock()
-			_, err = client.Send(photoMsg)
+			_, err = client.Send(msg)
 			mu.Unlock()
 			if err != nil {
 				return
