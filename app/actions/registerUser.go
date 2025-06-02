@@ -218,7 +218,8 @@ func RegisterPhoneNumberFunc(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 			db := database.Connect()
 			defer db.Close()
 
-			message := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите номер телефона:")
+			message := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите номер телефона:\n<i>Пример ввода: 89991234567</i>")
+			message.ParseMode = "HTML"
 			mu.Lock()
 			_, err = client.Send(message)
 			mu.Unlock()
