@@ -51,7 +51,7 @@ func getBotActions(bot tgbotapi.BotAPI) handlers.ActiveHandlers {
 		handlers.CallbackQueryHandler.Product(actions.NewMainMenuHandler(bot), []handlers.Filter{filters.MainMenuFilter}),
 
 		// ToDo: Разработать когда будет обновлено тз
-		handlers.CallbackQueryHandler.Product(actions.About{Name: "about", Client: bot}, []handlers.Filter{filters.AboutFilter}),
+		handlers.CallbackQueryHandler.Product(actions.NewAboutHandler(bot), []handlers.Filter{filters.AboutFilter}),
 
 		// ToDo: redo this shit
 		handlers.CallbackQueryHandler.Product(actions.ProfileSettings{Name: "profile-settings", Client: bot}, []handlers.Filter{filters.ProfileSettingsFilter}),
