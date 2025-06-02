@@ -96,6 +96,24 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 				return
 			}
 
+			var cartChanged bool
+			cartChanged, err = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).TidyCart(*db)
+			if err != nil {
+				return
+			}
+
+			if cartChanged {
+				_, err := v.Client.Request(tgbotapi.CallbackConfig{
+					CallbackQueryID: update.CallbackQuery.ID,
+					Text:            "Количество некторых товаров уменьшилось. Проверьте корзину перед покупкой",
+					ShowAlert:       true,
+				})
+				if err != nil {
+					return
+				}
+			}
+
+
 			// Обработка изменения количества товара
 			if deltaStr, ok := pars["cartDelta"]; ok {
 				var delta int
@@ -143,7 +161,6 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 						return
 					}
 
-					// Перезапускаем обработчик для обновления отображения
 					update.CallbackQuery.Data = fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId, backIsMainMenu)
 					handler := NewViewCartHandler(v.Client)
 					handler.mu = v.mu

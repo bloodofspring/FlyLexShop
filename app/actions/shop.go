@@ -391,6 +391,23 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 
 			keyboard := [][]tgbotapi.InlineKeyboardButton{}
 
+			var cartChanged bool
+			cartChanged, err = userDb.TidyCart(*db)
+			if err != nil {
+				return
+			}
+
+			if cartChanged {
+				_, err := v.Client.Request(tgbotapi.CallbackConfig{
+					CallbackQueryID: update.CallbackQuery.ID,
+					Text:            "Количество некторых товаров уменьшилось. Проверьте корзину перед покупкой",
+					ShowAlert:       true,
+				})
+				if err != nil {
+					return
+				}
+			}
+
 			if ok, err := item.InUserCart(update.CallbackQuery.From.ID, *db); ok && err == nil {
 				add1CallbackData := "toCat?cartDelta=1"
 				rem1CallbackData := "toCat?cartDelta=-1"

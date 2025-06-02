@@ -205,6 +205,51 @@ func (u *TelegramUser) RemoveProductFromCart(db pg.DB, productID int) error {
 	return nil
 }
 
+func (u *TelegramUser) TidyCart(db pg.DB) (bool, error) {
+	transaction, err, _ := u.GetOrCreateTransaction(db)
+	if err != nil {
+		return false,err
+	}
+
+	err = db.Model(&transaction).
+		WherePK().
+		Relation("AddedProducts").
+		Select()
+	if err != nil {
+		return false, err
+	}
+
+	var cartChanged bool
+	for _, item := range transaction.AddedProducts {
+		if item.ProductCount > item.Product.AvailbleForPurchase {
+			if item.Product.AvailbleForPurchase == 0 {
+				_, err := db.Model(&item).
+					WherePK().
+					Delete()
+				if err != nil {
+					return cartChanged, err
+				}
+
+				cartChanged = true
+
+				continue
+			}
+
+			_, err := db.Model(&item).
+				WherePK().
+				Set("product_count = ?", item.Product.AvailbleForPurchase).
+				Update()
+			if err != nil {
+				return cartChanged, err
+			}
+
+			cartChanged = true
+		}
+	}
+
+	return cartChanged, nil
+}
+
 func (u *TelegramUser) GetTotalCartPrice(db pg.DB) (int, error) {
 	transaction, err, _ := u.GetOrCreateTransaction(db)
 	if err != nil {
