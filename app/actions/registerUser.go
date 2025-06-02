@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"fmt"
 	"main/controllers"
 	"main/database"
 	"main/database/models"
@@ -55,9 +56,11 @@ func RegistrationCompleted(client tgbotapi.BotAPI, update tgbotapi.Update, stepP
 			user := models.TelegramUser{ID: update.Message.From.ID}
 			_ = user.GetOrCreate(update.Message.From, *db)
 
-			user.DeliveryAddress = update.Message.Text
-			user.IsAuthorized = true
-			_, err = db.Model(&user).WherePK().Update()
+			_, err = db.Model(&user).
+				WherePK().
+				Set("delivery_address = ?", update.Message.Text).
+				Set("is_authorized = ?", true).
+				Update()
 			if err != nil {
 				return
 			}
@@ -94,12 +97,111 @@ func RegistrationCompleted(client tgbotapi.BotAPI, update tgbotapi.Update, stepP
 	}
 }
 
+type GetPVZ struct {
+	Name string
+	Client tgbotapi.BotAPI
+	mu *sync.Mutex
+}
+
+func NewGetPVZHandler(client tgbotapi.BotAPI) *GetPVZ {
+	return &GetPVZ{
+		Name: "getPVZ",
+		Client: client,
+		mu: &sync.Mutex{},
+	}
+}
+
 // GetPVZFunc обрабатывает ввод номера телефона и запрашивает адрес ПВЗ
 // client - экземпляр Telegram бота
 // update - обновление от Telegram API
 // stepParams - параметры шага регистрации
 // Возвращает ошибку, если что-то пошло не так
-func GetPVZFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
+func (g GetPVZ) Run(update tgbotapi.Update) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    var wg sync.WaitGroup
+	mu := sync.Mutex{}
+    var err error
+
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        select {
+        case <-ctx.Done():
+            return
+        default:
+			data := ParseCallData(update.CallbackQuery.Data)
+			service := data["service"]
+
+			servisePVZName := ""
+			switch service {
+			case "cdek":
+				servisePVZName = "CDEK"
+			case "yandex":
+				servisePVZName = "Яндекс доставки"
+			}
+
+			db := database.Connect()
+			defer db.Close()
+		
+			message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, fmt.Sprintf("Введите адрес ближайшего ПВЗ %s для дальнейшего оформления заказов ", servisePVZName))
+			mu.Lock()
+			_, err = g.Client.Send(message)
+			mu.Unlock()
+			if err != nil {
+				return
+			}
+		
+			user := models.TelegramUser{ID: update.CallbackQuery.From.ID}
+			err = user.GetOrCreate(update.CallbackQuery.From, *db)
+			if err != nil {
+				return
+			}
+		
+			_, err = db.Model(&user).
+				WherePK().
+				Set("delivery_service = ?", service).
+				Update()
+			if err != nil {
+				return
+			}
+				
+			stepKey := controllers.NextStepKey{
+				ChatID: update.CallbackQuery.Message.Chat.ID,
+				UserID: update.CallbackQuery.From.ID,
+			}
+			stepAction := controllers.NextStepAction{
+				Func:        RegistrationCompleted,
+				Params:      make(map[string]any),
+				CreatedAtTS: time.Now().Unix(),
+			}
+		
+			mu.Lock()
+			controllers.GetNextStepManager().RegisterNextStepAction(stepKey, stepAction)
+			mu.Unlock()
+        }
+    }()
+
+    done := make(chan struct{})
+    go func() {
+        wg.Wait()
+        close(done)
+    }()
+
+    select {
+    case <-done:
+        return err
+    case <-ctx.Done():
+        return ctx.Err()
+    }
+}
+
+func (g GetPVZ) GetName() string {
+	return g.Name
+}
+
+func GetDeliveryServiceFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
@@ -130,7 +232,7 @@ func GetPVZFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[s
 					UserID: update.Message.From.ID,
 				}
 				stepAction := controllers.NextStepAction{
-					Func:        GetPVZFunc,
+					Func:        GetDeliveryServiceFunc,
 					Params:      make(map[string]any),
 					CreatedAtTS: time.Now().Unix(),
 				}
@@ -145,7 +247,15 @@ func GetPVZFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[s
 			db := database.Connect()
 			defer db.Close()
 		
-			message := tgbotapi.NewMessage(update.Message.Chat.ID, "Введите адрес ближайшего ПВЗ для дальнейшего оформления заказов (CDEK или Яндекс доставка)")
+			message := tgbotapi.NewMessage(update.Message.Chat.ID, "выберите сервис доставки")
+			cdekCallbackData := "selectDeliveryService?service=cdek"
+			yandexCallbackData := "selectDeliveryService?service=yandex"
+			message.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
+				InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
+					{{Text: "CDEK", CallbackData: &cdekCallbackData}},
+					{{Text: "Яндекс доставка", CallbackData: &yandexCallbackData}},
+				},
+			}
 			mu.Lock()
 			_, err = client.Send(message)
 			mu.Unlock()
@@ -159,25 +269,13 @@ func GetPVZFunc(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[s
 				return
 			}
 		
-			user.Phone = update.Message.Text
-			_, err = db.Model(&user).WherePK().Update()
+			_, err = db.Model(&user).
+				WherePK().
+				Set("phone = ?", update.Message.Text).
+				Update()
 			if err != nil {
 				return
 			}
-				
-			stepKey := controllers.NextStepKey{
-				ChatID: update.Message.Chat.ID,
-				UserID: update.Message.From.ID,
-			}
-			stepAction := controllers.NextStepAction{
-				Func:        RegistrationCompleted,
-				Params:      make(map[string]any),
-				CreatedAtTS: time.Now().Unix(),
-			}
-		
-			mu.Lock()
-			controllers.GetNextStepManager().RegisterNextStepAction(stepKey, stepAction)
-			mu.Unlock()
         }
     }()
 
@@ -233,8 +331,10 @@ func RegisterPhoneNumberFunc(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 				return
 			}
 
-			user.FIO = update.Message.Text
-			_, err = db.Model(&user).WherePK().Update()
+			_, err = db.Model(&user).
+				WherePK().
+				Set("fio = ?", update.Message.Text).
+				Update()
 			if err != nil {
 				return
 			}
@@ -244,7 +344,7 @@ func RegisterPhoneNumberFunc(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 				UserID: update.Message.From.ID,
 			}
 			stepAction := controllers.NextStepAction{
-				Func:        GetPVZFunc,
+				Func:        GetDeliveryServiceFunc,
 				Params:      make(map[string]any),
 				CreatedAtTS: time.Now().Unix(),
 			}
