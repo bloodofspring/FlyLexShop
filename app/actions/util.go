@@ -110,9 +110,8 @@ func NumberToEmoji(n int) string {
 
 	var result string
 
-	for _, d := range digits {
-		result += numbersMap[d]
-
+	for i := len(digits) - 1; i >= 0; i-- {
+		result += numbersMap[digits[i]]
 	}
 
 	return result

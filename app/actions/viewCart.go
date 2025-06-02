@@ -184,7 +184,7 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 			rem1CallbackData := fmt.Sprintf("viewCart?itemId=%d&cartDelta=-1&backIsMainMenu=%t", itemId, backIsMainMenu)
 			nullCallbackData := "<null>"
 			countBtn := tgbotapi.InlineKeyboardButton{
-				Text:         fmt.Sprintf("%s/%s", NumberToEmoji(cartItem.ProductCount), NumberToEmoji(item.AvailbleForPurchase)),
+				Text:         fmt.Sprintf("%d/%d", cartItem.ProductCount, item.AvailbleForPurchase),
 				CallbackData: &nullCallbackData,
 			}
 			row := []tgbotapi.InlineKeyboardButton{

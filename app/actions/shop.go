@@ -440,7 +440,7 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 
 				buttonRow := []tgbotapi.InlineKeyboardButton{
 					{Text: "-", CallbackData: &rem1CallbackData},
-					{Text: fmt.Sprintf("%s/%s", NumberToEmoji(productInCartCount), NumberToEmoji(item.AvailbleForPurchase)), CallbackData: &nullCallbackData},
+					{Text: fmt.Sprintf("%d/%d", productInCartCount, item.AvailbleForPurchase), CallbackData: &nullCallbackData},
 				}
 
 				if productInCartCount < item.AvailbleForPurchase {
