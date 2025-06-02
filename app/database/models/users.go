@@ -71,7 +71,7 @@ func (u *TelegramUser) GetOrCreate(apiUser *tgbotapi.User, db pg.DB) error {
 
 func (u *TelegramUser) GetProductInCartCount(db pg.DB, productID int) (int, error) {
 	var count int
-	count, err := db.Model(&ShoppingCart{}).
+	count, err := db.Model(&AddedProducts{}).
 		Where("user_id = ?", u.ID).
 		Where("product_id = ?", productID).
 		Count()
@@ -85,7 +85,7 @@ func (u *TelegramUser) AddProductToCart(db pg.DB, productID int) error {
 	if productInCartCount, err := u.GetProductInCartCount(db, productID); err != nil {
 		return err
 	} else if productInCartCount > 0 {
-		_, err := db.Model(&ShoppingCart{}).
+		_, err := db.Model(&AddedProducts{}).
 			Where("user_id = ?", u.ID).
 			Where("product_id = ?", productID).
 			Set("product_count = product_count + 1").
@@ -94,7 +94,7 @@ func (u *TelegramUser) AddProductToCart(db pg.DB, productID int) error {
 			return err
 		}
 	} else {
-		_, err := db.Model(&ShoppingCart{
+		_, err := db.Model(&AddedProducts{
 			UserID:    u.ID,
 			ProductID: productID,
 		}).Insert()
@@ -110,7 +110,7 @@ func (u *TelegramUser) RemoveProductFromCart(db pg.DB, productID int) error {
 	if productInCartCount, err := u.GetProductInCartCount(db, productID); err != nil {
 		return err
 	} else if productInCartCount > 1 {
-		_, err := db.Model(&ShoppingCart{}).
+		_, err := db.Model(&AddedProducts{}).
 			Where("user_id = ?", u.ID).
 			Where("product_id = ?", productID).
 			Set("product_count = product_count - 1").
@@ -119,7 +119,7 @@ func (u *TelegramUser) RemoveProductFromCart(db pg.DB, productID int) error {
 			return err
 		}
 	} else if productInCartCount == 1 {
-		_, err = db.Model(&ShoppingCart{}).
+		_, err = db.Model(&AddedProducts{}).
 			Where("user_id = ?", u.ID).
 			Where("product_id = ?", productID).
 			Delete()
@@ -132,7 +132,7 @@ func (u *TelegramUser) RemoveProductFromCart(db pg.DB, productID int) error {
 }
 
 func (u *TelegramUser) GetTotalCartPrice(db pg.DB) (int, error) {
-	cart := []ShoppingCart{}
+	cart := []AddedProducts{}
 	err := db.Model(&cart).Where("user_id = ?", u.ID).Select()
 	if err != nil {
 		return 0, err
@@ -150,11 +150,30 @@ func (u *TelegramUser) GetTotalCartPrice(db pg.DB) (int, error) {
 	return totalPrice, nil
 }
 
-type ShoppingCart struct {
-	ID        int           `json:"id"`
-	UserID    int64         `json:"user_id"`
-	User      *TelegramUser `pg:"rel:has-one,fk:user_id"`
-	ProductID int           `json:"product_id"`
-	Product   *Product      `pg:"rel:has-one,fk:product_id"`
-	ProductCount int        `pg:",default:1" json:"product_count"`
+type Transaction struct {
+	ID string `pg:",pk" json:"id"`
+
+	CreatedAtTS int64 `pg:",default:extract(epoch from now())" json:"created_at_ts"`
+	UpdatedAtTS int64 `pg:",default:extract(epoch from now())" json:"updated_at_ts"`
+
+	UserID int64 `json:"user_id"`
+	User *TelegramUser `pg:"rel:has-one,fk:user_id"`
+
+	IsApproved bool `pg:",default:false" json:"is_approved"`
+
+	AddedProducts []*AddedProducts `pg:"rel:has-many,join_fk:transaction_id"`
+}
+
+type AddedProducts struct {
+	ID           int           `json:"id"`
+
+	UserID       int64         `json:"user_id"`
+	User         *TelegramUser `pg:"rel:has-one,fk:user_id"`
+
+	ProductID    int           `json:"product_id"`
+	Product      *Product      `pg:"rel:has-one,fk:product_id"`
+	ProductCount int           `pg:",default:1" json:"product_count"`
+
+	TransactionID string `json:"transaction_id"`
+	Transaction   *Transaction `pg:"rel:has-one,fk:transaction_id"`
 }

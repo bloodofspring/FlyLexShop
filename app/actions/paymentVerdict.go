@@ -92,7 +92,7 @@ func (p PaymentVerdict) Run(update tgbotapi.Update) error {
 				db := database.Connect()
 				defer db.Close()
 
-				_, err = db.Model(&models.ShoppingCart{}).Where("user_id = ?", userId).Delete()
+				_, err = db.Model(&models.AddedProducts{}).Where("user_id = ?", userId).Delete()
 				if err != nil {
 					return
 				}

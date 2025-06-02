@@ -138,7 +138,7 @@ func (s Shop) Run(update tgbotapi.Update) error {
 				text = "Выберите каталог"
 
 				var cartItemCount int
-				var cartItems []models.ShoppingCart
+				var cartItems []models.AddedProducts
 				cartItemCount, err = db.Model(&cartItems).
 					Where("user_id = ?", update.CallbackQuery.From.ID).
 					Relation("Product").
@@ -439,13 +439,13 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 
 			if userDb.IsAdmin {
 				var (
-					removeCatalogCallbackData     = "editShop?a=removeCatalog"
-					removeProductCallbackData     = "editShop?a=removeProduct"
-					changePhotoCallbackData       = "editShop?a=changePhoto"
-					changePriceCallbackData       = "editShop?a=changePrice"
-					changeNameCallbackData        = "editShop?a=changeName"
-					changeDescriptionCallbackData = "editShop?a=changeDescription"
-					addProductCallbackData        = "editShop?a=createProduct"
+					removeCatalogCallbackData             = "editShop?a=removeCatalog"
+					removeProductCallbackData             = "editShop?a=removeProduct"
+					changePhotoCallbackData               = "editShop?a=changePhoto"
+					changePriceCallbackData               = "editShop?a=changePrice"
+					changeNameCallbackData                = "editShop?a=changeName"
+					changeDescriptionCallbackData         = "editShop?a=changeDescription"
+					addProductCallbackData                = "editShop?a=createProduct"
 					changeAvailbleForPurchaseCallbackData = "editShop?a=changeAvailbleForPurchase"
 				)
 				keyboard = append(

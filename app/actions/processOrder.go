@@ -80,7 +80,7 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 			defer db.Close()
 		
 			var items []models.Product
-			err = db.Model(&items).Where("id IN (SELECT product_id FROM shopping_carts WHERE user_id = ?)", update.Message.From.ID).Select()
+			err = db.Model(&items).Where("id IN (SELECT product_id FROM added_products WHERE user_id = ?)", update.Message.From.ID).Select()
 			if err != nil {
 				return
 			}

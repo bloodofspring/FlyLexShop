@@ -27,7 +27,8 @@ func InitDb() error {
 		(*models.TelegramUser)(nil),
 		(*models.Catalog)(nil),
 		(*models.Product)(nil),
-		(*models.ShoppingCart)(nil),
+		(*models.AddedProducts)(nil),
+		(*models.Transaction)(nil),
 		(*models.ShopViewSession)(nil),
 	}
 

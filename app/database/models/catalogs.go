@@ -5,13 +5,13 @@ import (
 )
 
 type Catalog struct {
-	ID   int    `json:"id"`
+	ID int `json:"id"`
 
 	CreatedAt int64 `pg:",default:extract(epoch from now())"`
 
 	Name string `json:"name"`
 
-	Products    []*Product       `pg:"rel:has-many,join_fk:catalog_id"`
+	Products     []*Product         `pg:"rel:has-many,join_fk:catalog_id"`
 	ShopSessions []*ShopViewSession `pg:"rel:has-many,join_fk:catalog_id"`
 }
 
@@ -27,7 +27,7 @@ func (c *Catalog) GetProductCount(db *pg.DB) (int, error) {
 }
 
 type Product struct {
-	ID          int    `json:"id"`
+	ID int `json:"id"`
 
 	CreatedAt int64 `pg:",default:extract(epoch from now())"`
 
@@ -44,7 +44,7 @@ type Product struct {
 }
 
 func (p *Product) InUserCart(userId int64, db pg.DB) (bool, error) {
-	cart := []ShoppingCart{}
+	cart := []AddedProducts{}
 	err := db.Model(&cart).Where("user_id = ?", userId).Where("product_id = ?", p.ID).Select()
 	if err != nil {
 		return false, err

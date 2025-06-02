@@ -68,7 +68,7 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 				return
 			}
 
-			var cartItems []models.ShoppingCart
+			var cartItems []models.AddedProducts
 			err = db.Model(&cartItems).Where("user_id = ?", update.CallbackQuery.From.ID).Relation("Product").Select()
 			if err != nil {
 				return
