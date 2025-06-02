@@ -2,12 +2,10 @@ package actions
 
 import (
 	"context"
-	"fmt"
 	"main/controllers"
 	"main/database"
 	"main/database/models"
 	"main/filters"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -134,7 +132,20 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 
 // removeCatalog удаляет каталог и возвращает пользователя к списку каталогов.
 func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession, db pg.DB) error {
-	_, err := db.Model(&models.Catalog{}).Where("id = ?", session.CatalogID).Delete()
+	var products []models.Product
+	err := db.Model(&products).Where("catalog_id = ?", session.CatalogID).Select()
+	if err != nil {
+		return err
+	}
+
+	for _, product := range products {
+		err = DeleteProductFromUsersCarts(&db, product.ID, &client)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = db.Model(&models.Catalog{}).Where("id = ?", session.CatalogID).Delete()
 	if err != nil {
 		return err
 	}
@@ -155,56 +166,14 @@ func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 		return err
 	}
 
-	client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
-
-	NewShopHandler(client).Run(update)
-
-	return nil
+	return NewShopHandler(client).Run(update)
 }
 
 // removeProduct удаляет текущий товар и возвращает пользователя к просмотру каталога.
 func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession, db pg.DB) error {
-	addedTo := []models.AddedProducts{}
-	err := db.Model(&addedTo).
-		Where("product_id = ?", session.ProductAt.ID).
-		Relation("Transaction").
-		Relation("Transaction.AddedProducts").
-		Relation("Product").
-		Relation("User").
-		Select()
+	err := DeleteProductFromUsersCarts(&db, session.ProductAt.ID, &client)
 	if err != nil {
 		return err
-	}
-
-	for _, item := range addedTo {
-		if item.Transaction.IsWaitingForApproval {
-			adminChatIdStr := os.Getenv("ADMIN_CHAT_ID")
-
-			adminChatId, err := strconv.ParseInt(adminChatIdStr, 10, 64)
-			if err != nil {
-				return err
-			}
-
-			var userName string
-			if item.User.Username != "" {
-				userName = "@" + item.User.Username
-			} else {
-				userName = "<a href='tg://user?id=" + strconv.FormatInt(item.User.ID, 10) + "'>" + item.User.FirstName + " " + item.User.LastName + "</a>"
-			}
-
-			message := tgbotapi.NewMessage(adminChatId, fmt.Sprintf("Товар удалён из корзины пользователя %s который уже оплатил заказ! Неоходимо осуществить возврат средств на сумму %d₽", userName, item.Product.Price*item.ProductCount))
-
-			_, err = client.Send(message)
-			if err != nil {
-				return err
-			}
-		}
-
-		if len(item.Transaction.AddedProducts) == 1 {
-			db.Model(item.Transaction).WherePK().Delete()
-		}
-
-		db.Model(item).WherePK().Delete()
 	}
 
 	_, err = db.Model(session.ProductAt).WherePK().Delete()
