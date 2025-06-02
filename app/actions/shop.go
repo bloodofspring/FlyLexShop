@@ -303,26 +303,41 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 			}
 
 			if productCount == 0 {
-				message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "В этом каталоге пока что нет товаров")
+				text := "В этом каталоге пока что нет товаров"
 				toListOfCats := "shop"
-				message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
-					InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{{Text: "К списку каталогов", CallbackData: &toListOfCats}}},
+				keyboard := [][]tgbotapi.InlineKeyboardButton{
+					{{Text: "К списку каталогов", CallbackData: &toListOfCats}},
 				}
 
 				if userDb.IsAdmin {
 					removeCatalogCallbackData := "editShop?a=removeCatalog"
 					addProductCallbackData := "editShop?a=createProduct"
-					message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
-						InlineKeyboard: append(message.ReplyMarkup.InlineKeyboard, []tgbotapi.InlineKeyboardButton{
-							{Text: "Удалить каталог", CallbackData: &removeCatalogCallbackData},
-							{Text: "Добавить товар", CallbackData: &addProductCallbackData},
-						}),
-					}
+					keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
+						{Text: "Удалить каталог", CallbackData: &removeCatalogCallbackData},
+						{Text: "Добавить товар", CallbackData: &addProductCallbackData},
+					})
 				}
+
+				message := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, text)
+				message.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{InlineKeyboard: keyboard}
 
 				v.mu.Lock()
 				_, err = v.Client.Send(message)
 				v.mu.Unlock()
+
+				if err != nil && err.Error() == "Bad Request: there is no text in the message to edit" {
+					v.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
+					err = nil
+				}
+
+				if err != nil && (err.Error() == "Bad Request: message to edit not found" || err.Error() == "Bad Request: there is no text in the message to edit") {
+					messageToSend := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, text)
+					messageToSend.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{InlineKeyboard: keyboard}
+
+					v.mu.Lock()
+					_, err = v.Client.Send(messageToSend)
+					v.mu.Unlock()
+				}
 
 				return
 			}

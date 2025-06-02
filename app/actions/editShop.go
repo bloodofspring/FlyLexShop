@@ -2,10 +2,12 @@ package actions
 
 import (
 	"context"
+	"fmt"
 	"main/controllers"
 	"main/database"
 	"main/database/models"
 	"main/filters"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -37,10 +39,10 @@ func NewEditShopHandler(client tgbotapi.BotAPI) *EditShop {
 func (e EditShop) Run(update tgbotapi.Update) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	var wg sync.WaitGroup
 	var err error
-	
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -115,13 +117,13 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 			return
 		}
 	}()
-	
+
 	done := make(chan struct{})
 	go func() {
 		wg.Wait()
 		close(done)
 	}()
-	
+
 	select {
 	case <-done:
 		return err
@@ -153,12 +155,59 @@ func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 		return err
 	}
 
-	return Shop{Name: "shop", Client: client}.Run(update)
+	client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
+
+	NewShopHandler(client).Run(update)
+
+	return nil
 }
 
 // removeProduct удаляет текущий товар и возвращает пользователя к просмотру каталога.
 func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession, db pg.DB) error {
-	_, err := db.Model(session.ProductAt).WherePK().Delete()
+	addedTo := []models.AddedProducts{}
+	err := db.Model(&addedTo).
+		Where("product_id = ?", session.ProductAt.ID).
+		Relation("Transaction").
+		Relation("Transaction.AddedProducts").
+		Relation("Product").
+		Relation("User").
+		Select()
+	if err != nil {
+		return err
+	}
+
+	for _, item := range addedTo {
+		if item.Transaction.IsWaitingForApproval {
+			adminChatIdStr := os.Getenv("ADMIN_CHAT_ID")
+
+			adminChatId, err := strconv.ParseInt(adminChatIdStr, 10, 64)
+			if err != nil {
+				return err
+			}
+
+			var userName string
+			if item.User.Username != "" {
+				userName = "@" + item.User.Username
+			} else {
+				userName = "<a href='tg://user?id=" + strconv.FormatInt(item.User.ID, 10) + "'>" + item.User.FirstName + " " + item.User.LastName + "</a>"
+			}
+
+			message := tgbotapi.NewMessage(adminChatId, fmt.Sprintf("Товар удалён из корзины пользователя %s который уже оплатил заказ! Неоходимо осуществить возврат средств на сумму %d₽", userName, item.Product.Price*item.ProductCount))
+
+			_, err = client.Send(message)
+			if err != nil {
+				return err
+			}
+		}
+
+		if len(item.Transaction.AddedProducts) == 1 {
+			db.Model(item.Transaction).WherePK().Delete()
+		}
+
+		db.Model(item).WherePK().Delete()
+	}
+
+	_, err = db.Model(session.ProductAt).WherePK().Delete()
 	if err != nil {
 		return err
 	}
@@ -173,7 +222,8 @@ func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 		return err
 	}
 
-	return ViewCatalog{Name: "viewCatalog", Client: client}.Run(update)
+	handler := NewViewCatalogHandler(client)
+	return handler.Run(update)
 }
 
 // baseForm отображает форму ввода с кнопкой отмены и регистрирует следующий шаг.
@@ -515,12 +565,12 @@ func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 	defer db.Close()
 
 	_, err := db.Model(&models.Product{
-		ImageFileID: photoID,
-		Name:        stepParams["productName"].(string),
-		Price:       stepParams["productPrice"].(int),
-		Description: stepParams["productDescription"].(string),
+		ImageFileID:         photoID,
+		Name:                stepParams["productName"].(string),
+		Price:               stepParams["productPrice"].(int),
+		Description:         stepParams["productDescription"].(string),
 		AvailbleForPurchase: stepParams["productAvailbleForPurchase"].(int),
-		CatalogID:   stepParams["session"].(models.ShopViewSession).Catalog.ID,
+		CatalogID:           stepParams["session"].(models.ShopViewSession).Catalog.ID,
 	}).Insert()
 	if err != nil {
 		return err
