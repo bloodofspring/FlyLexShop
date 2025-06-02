@@ -292,7 +292,7 @@ type ChangeDeliveryAddress struct {
 
 func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 	c.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
-	const text = "Ваш адрес доставки сейчас:\n<b>%s</b>\n\n<i>Введите новый адрес доставки:</i>"
+	const text = "Ваш адрес доставки сейчас:\n<b>%s</b>\n\n<i>Введите новый адрес доставки для сервиса %s:</i>"
 
 	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
 	message.ParseMode = "HTML"
@@ -306,7 +306,15 @@ func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 		return err
 	}
 
-	message.Text = fmt.Sprintf(text, user.DeliveryAddress)
+	devServiceName := ""
+	switch user.DeliveryService {
+	case "cdek":
+		devServiceName = "CDEK"
+	case "yandex":
+		devServiceName = "Яндекс доставка"
+	}
+
+	message.Text = fmt.Sprintf(text, user.DeliveryAddress, devServiceName)
 
 	data := ParseCallData(update.CallbackQuery.Data)
 	showBackButton := data["showBackButton"] == "true"
@@ -437,7 +445,15 @@ func (c ChangeDeliveryService) Run(update tgbotapi.Update) error {
 		return err
 	}
 
-	message.Text = fmt.Sprintf(text, user.DeliveryService)
+	devServiceName := ""
+	switch user.DeliveryService {
+	case "cdek":
+		devServiceName = "CDEK"
+	case "yandex":
+		devServiceName = "Яндекс доставка"
+	}
+
+	message.Text = fmt.Sprintf(text, devServiceName)
 
 	data := ParseCallData(update.CallbackQuery.Data)
 	showBackButton := data["showBackButton"] == "true"

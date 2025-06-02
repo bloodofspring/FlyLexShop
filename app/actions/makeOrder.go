@@ -13,7 +13,7 @@ import (
 
 const (
 	// makeOrderPageText - шаблон текста для страницы оформления заказа
-	makeOrderPageText = "<b>Итог:</b>\nОбщая стоимость товаров: %dр.\n\n<b>Проверьте корректность ваших данных:</b>\n\n|_ Номер телефона: %s\n|_ ФИО: %s\n|_ Адрес ПВЗ: %s\n|_ Сервис доставки: %s"
+	makeOrderPageText = "<b>Итог:</b>\nОбщая стоимость товаров: %dр.\n\n<b>Проверьте корректность ваших данных:</b>\n\n%s\n|_ Номер телефона: %s\n|_ ФИО: %s\n|_ Адрес ПВЗ: %s\n|_ Сервис доставки: %s"
 )
 
 var (
@@ -111,7 +111,13 @@ func (m MakeOrder) Run(update tgbotapi.Update) error {
 				return
 			}
 
-			finalPageText := fmt.Sprintf(makeOrderPageText, totalPrice, user.Phone, user.FIO, user.DeliveryAddress, user.DeliveryService)
+			var cartDesc string
+			cartDesc, err = user.GetCartDescription(*db)
+			if err != nil {
+				return
+			}
+
+			finalPageText := fmt.Sprintf(makeOrderPageText, totalPrice, cartDesc, user.Phone, user.FIO, user.DeliveryAddress, user.DeliveryService)
 
 			msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, finalPageText)
 			msg.ParseMode = "HTML"

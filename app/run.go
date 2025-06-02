@@ -46,6 +46,7 @@ func getBotActions(bot tgbotapi.BotAPI) handlers.ActiveHandlers {
 	act := handlers.ActiveHandlers{Handlers: []handlers.Handler{
 		handlers.CommandHandler.Product(actions.NewSayHiHandler(bot), []handlers.Filter{filters.StartFilter}),
 		handlers.CallbackQueryHandler.Product(actions.NewRegisterUserHandler(bot), []handlers.Filter{filters.RegisterUserFilter}),
+		handlers.CallbackQueryHandler.Product(actions.NewGetPVZHandler(bot), []handlers.Filter{filters.SelectDeliveryServiceFilter}),
 		
 		handlers.CommandHandler.Product(actions.NewMainMenuHandler(bot), []handlers.Filter{filters.ToMainMenuFilter}),
 		handlers.CallbackQueryHandler.Product(actions.NewMainMenuHandler(bot), []handlers.Filter{filters.MainMenuFilter}),

@@ -1,6 +1,8 @@
 package models
 
 import (
+	"fmt"
+
 	"github.com/go-pg/pg/v10"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -357,6 +359,30 @@ func (u *TelegramUser) GetTotalCartPrice(db pg.DB) (int, error) {
 		totalPrice += item.Product.Price * item.ProductCount
 	}
 	return totalPrice, nil
+}
+
+func (u *TelegramUser) GetCartDescription(db pg.DB) (string, error) {
+	var transaction Transaction
+	transaction, err, _ := u.GetOrCreateTransaction(db)
+	if err != nil {
+		return "", err
+	}
+
+	err = db.Model(&transaction).
+		WherePK().
+		Relation("AddedProducts").
+		Relation("AddedProducts.Product").
+		Select()
+	if err != nil {
+		return "", err
+	}
+
+	cartDesc := "Список товаров:\n"
+	for _, item := range transaction.AddedProducts {
+		cartDesc += fmt.Sprintf("|_ %s (%d шт.) - %d₽\n", item.Product.Name, item.ProductCount, item.ProductCount*item.Product.Price)
+	}
+
+	return cartDesc, nil
 }
 
 type Transaction struct {

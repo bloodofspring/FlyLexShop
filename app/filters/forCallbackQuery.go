@@ -26,6 +26,10 @@ var ChangeCatalogNameFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bo
 	return strings.HasPrefix(update.CallbackQuery.Data, "changeCatalogName")
 }
 
+var SelectDeliveryServiceFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
+	return strings.HasPrefix(update.CallbackQuery.Data, "selectDeliveryService")
+}
+
 var ProfileSettingsFilter = func(update tgbotapi.Update, client tgbotapi.BotAPI) bool {
 	if strings.HasPrefix(update.CallbackQuery.Data, "profileSettings") {
 		controllers.GetNextStepManager().RemoveNextStepAction(controllers.NextStepKey{ChatID: update.CallbackQuery.Message.Chat.ID, UserID: update.CallbackQuery.From.ID}, client, true)
