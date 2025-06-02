@@ -79,30 +79,20 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 			db := database.Connect()
 			defer db.Close()
 
-			var transaction models.Transaction
-			transaction, err, _ = (&models.TelegramUser{ID: update.Message.From.ID}).GetOrCreateTransaction(*db)
-			if err != nil {
-				return
-			}
-
-			err = db.Model(&transaction).
-				WherePK().
-				Relation("AddedProducts").
-				Relation("AddedProducts.Product").
-				Select()
-			if err != nil {
-				return
-			}
-
-			cartDesc := "Список товаров:\n"
-			totalPrice := 0
-			for _, item := range transaction.AddedProducts {
-				cartDesc += fmt.Sprintf("|_ %s (%d x %d₽) - %d₽\n", item.Product.Name, item.ProductCount, item.Product.Price, item.ProductCount*item.Product.Price)
-				totalPrice += item.ProductCount * item.Product.Price
-			}
-
 			user := models.TelegramUser{ID: update.Message.From.ID}
 			err = user.Get(*db)
+			if err != nil {
+				return
+			}
+
+			var totalPrice int
+			totalPrice, err = user.GetTotalCartPrice(*db)
+			if err != nil {
+				return
+			}
+
+			var cartDesc string
+			cartDesc, err = user.GetCartDescription(*db)
 			if err != nil {
 				return
 			}
@@ -123,6 +113,12 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 			photoMsg := tgbotapi.NewPhoto(chatID, tgbotapi.FileID(update.Message.Photo[len(update.Message.Photo)-1].FileID))
 			photoMsg.ParseMode = "HTML"
 			photoMsg.Caption = cartDesc
+
+			var transaction models.Transaction
+			transaction, err, _ = user.GetOrCreateTransaction(*db)
+			if err != nil {
+				return
+			}
 
 			db.Model(&transaction).WherePK().Set("is_waiting_for_approval = ?", true).Update()
 
