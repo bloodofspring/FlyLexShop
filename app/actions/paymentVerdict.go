@@ -115,6 +115,11 @@ func (p PaymentVerdict) Run(update tgbotapi.Update) error {
 			if err != nil {
 				return
 			}
+			err = (&models.TelegramUser{ID: userId}).IncreaseProductAvailbleForPurchase(*db, transactionID)
+			if err != nil {
+				return
+			}
+
 			err = (&models.TelegramUser{ID: userId}).DropTransaction(*db, transactionID)
 
 			if err != nil {

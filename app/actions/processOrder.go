@@ -55,7 +55,7 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 				if err != nil {
 					return
 				}
-		
+
 				stepKey := controllers.NextStepKey{
 					ChatID: update.Message.Chat.ID,
 					UserID: update.Message.From.ID,
@@ -66,54 +66,18 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 					CreatedAtTS:   time.Now().Unix(),
 					CancelMessage: "Оформление заказа прервано! Вы можете совершить покупку позже в этом же разделе.",
 				}
-		
+
 				mu.Lock()
 				controllers.GetNextStepManager().RegisterNextStepAction(stepKey, stepAction)
 				mu.Unlock()
-		
+
 				return
 			}
 
 			adminChatID := os.Getenv("ADMIN_CHAT_ID")
-		
+
 			db := database.Connect()
 			defer db.Close()
-		
-			var items []models.Product
-			err = db.Model(&items).Where("id IN (SELECT product_id FROM added_products WHERE user_id = ?)", update.Message.From.ID).Select()
-			if err != nil {
-				return
-			}
-		
-			cartDesc := "Список товаров:\n"
-			totalPrice := 0
-			for _, item := range items {
-				cartDesc += fmt.Sprintf("|_ %s - %d₽\n", item.Name, item.Price)
-				totalPrice += item.Price
-			}
-		
-			user := models.TelegramUser{ID: update.Message.From.ID}
-			err = user.Get(*db)
-			if err != nil {
-				return
-			}
-		
-			cartDesc += fmt.Sprintf("\nИтоговая сумма: %d₽", totalPrice)
-			cartDesc += "\n<b>Дополнительная информация:</b>"
-			cartDesc += "\n|_ Адрес доставки: " + user.DeliveryAddress
-			cartDesc += "\n|_ Сервис доставки: " + user.DeliveryService
-			cartDesc += "\n|_ Номер телефона: " + user.Phone
-			cartDesc += "\n|_ ФИО: " + user.FIO
-		
-			var chatID int64
-			chatID, err = strconv.ParseInt(adminChatID, 10, 64)
-			if err != nil {
-				return
-			}
-		
-			photoMsg := tgbotapi.NewPhoto(chatID, tgbotapi.FileID(update.Message.Photo[len(update.Message.Photo)-1].FileID))
-			photoMsg.ParseMode = "HTML"
-			photoMsg.Caption = cartDesc
 
 			var transaction models.Transaction
 			transaction, err, _ = (&models.TelegramUser{ID: update.Message.From.ID}).GetOrCreateTransaction(*db)
@@ -121,8 +85,47 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 				return
 			}
 
+			err = db.Model(&transaction).
+				WherePK().
+				Relation("AddedProducts").
+				Relation("AddedProducts.Product").
+				Select()
+			if err != nil {
+				return
+			}
+
+			cartDesc := "Список товаров:\n"
+			totalPrice := 0
+			for _, item := range transaction.AddedProducts {
+				cartDesc += fmt.Sprintf("|_ %s (%d x %d₽) - %d₽\n", item.Product.Name, item.ProductCount, item.Product.Price, item.ProductCount*item.Product.Price)
+				totalPrice += item.ProductCount * item.Product.Price
+			}
+
+			user := models.TelegramUser{ID: update.Message.From.ID}
+			err = user.Get(*db)
+			if err != nil {
+				return
+			}
+
+			cartDesc += fmt.Sprintf("\nИтоговая сумма: %d₽", totalPrice)
+			cartDesc += "\n<b>Дополнительная информация:</b>"
+			cartDesc += "\n|_ Адрес доставки: " + user.DeliveryAddress
+			cartDesc += "\n|_ Сервис доставки: " + user.DeliveryService
+			cartDesc += "\n|_ Номер телефона: " + user.Phone
+			cartDesc += "\n|_ ФИО: " + user.FIO
+
+			var chatID int64
+			chatID, err = strconv.ParseInt(adminChatID, 10, 64)
+			if err != nil {
+				return
+			}
+
+			photoMsg := tgbotapi.NewPhoto(chatID, tgbotapi.FileID(update.Message.Photo[len(update.Message.Photo)-1].FileID))
+			photoMsg.ParseMode = "HTML"
+			photoMsg.Caption = cartDesc
+
 			db.Model(&transaction).WherePK().Set("is_waiting_for_approval = ?", true).Update()
-		
+
 			acceptData := fmt.Sprintf("paymentVerdict?ok=true&tid=%d&userId=%d", transaction.ID, update.Message.From.ID)
 			rejectData := fmt.Sprintf("paymentVerdict?ok=false&tid=%d&userId=%d", transaction.ID, update.Message.From.ID)
 			photoMsg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{
@@ -133,14 +136,14 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 					},
 				},
 			}
-		
+
 			mu.Lock()
 			_, err = client.Send(photoMsg)
 			mu.Unlock()
 			if err != nil {
 				return
 			}
-		
+
 			successMsg := tgbotapi.NewMessage(update.Message.Chat.ID, "Спасибо, администратор скоро проверит оплату!")
 			mainMenuCallbackData := "mainMenu"
 			successMsg.ReplyMarkup = &tgbotapi.InlineKeyboardMarkup{
@@ -246,6 +249,19 @@ func (p ProcessOrder) Run(update tgbotapi.Update) error {
 			var totalPrice int
 			totalPrice, err = user.GetTotalCartPrice(*db)
 			if err != nil {
+				return
+			}
+
+			if totalPrice == 0 {
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Корзина пуста")
+				msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{
+					{Text: "К списку каталогов", CallbackData: &toListofCats},
+				}}}
+
+				p.mu.Lock()
+				_, err = p.Client.Send(msg)
+				p.mu.Unlock()
+
 				return
 			}
 

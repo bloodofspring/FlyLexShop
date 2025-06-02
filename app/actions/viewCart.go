@@ -68,13 +68,22 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 				return
 			}
 
-			var cartItems []models.AddedProducts
-			err = db.Model(&cartItems).Where("user_id = ?", update.CallbackQuery.From.ID).Relation("Product").Select()
+			var transaction models.Transaction
+			transaction, err, _ = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).GetOrCreateTransaction(*db)
 			if err != nil {
 				return
 			}
 
-			if len(cartItems) == 0 {
+			err = db.Model(&transaction).
+				WherePK().
+				Relation("AddedProducts").
+				Relation("AddedProducts.Product").
+				Select()
+			if err != nil {
+				return
+			}
+
+			if len(transaction.AddedProducts) == 0 {
 				v.mu.Lock()
 				_, err = v.Client.Request(tgbotapi.CallbackConfig{
 					CallbackQueryID: update.CallbackQuery.ID,
@@ -84,13 +93,13 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 				return
 			}
 
-			if itemId >= len(cartItems) {
+			if itemId >= len(transaction.AddedProducts) {
 				itemId = 0
 			} else if itemId < 0 {
-				itemId = len(cartItems) - 1
+				itemId = len(transaction.AddedProducts) - 1
 			}
 
-			cartItem := cartItems[itemId]
+			cartItem := transaction.AddedProducts[itemId]
 			item := cartItem.Product
 			if item == nil {
 				return
@@ -183,20 +192,20 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 				countBtn,
 			}
 
-			if cartItem.ProductCount <= item.AvailbleForPurchase {
+			if cartItem.ProductCount < item.AvailbleForPurchase {
 				row = append(row, tgbotapi.InlineKeyboardButton{Text: "+", CallbackData: &add1CallbackData})
 			}
 
 			keyboard = append(keyboard, row)
 
 			// Навигация по товарам в корзине
-			if len(cartItems) > 1 {
+			if len(transaction.AddedProducts) > 1 {
 				nextItemCallbackData := fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId+1, backIsMainMenu)
 				noneCallbackData := "<null>"
 				prevItemCallbackData := fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId-1, backIsMainMenu)
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 					{Text: "⬅️", CallbackData: &prevItemCallbackData},
-					{Text: fmt.Sprintf("%s/%s", NumberToEmoji(itemId+1), NumberToEmoji(len(cartItems))), CallbackData: &noneCallbackData},
+					{Text: fmt.Sprintf("%s/%s", NumberToEmoji(itemId+1), NumberToEmoji(len(transaction.AddedProducts))), CallbackData: &noneCallbackData},
 					{Text: "➡️", CallbackData: &nextItemCallbackData},
 				})
 			}

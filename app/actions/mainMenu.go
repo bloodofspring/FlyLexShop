@@ -48,18 +48,20 @@ func (m MainMenu) Run(update tgbotapi.Update) error {
 			ClearNextStepForUser(update, &m.Client, true)
 			m.mu.Unlock()
 
-			data := ParseCallData(update.CallbackQuery.Data)
-			if _, ok := data["resetAvailablity"]; ok {
-				db := database.Connect()
-				defer db.Close()
+			if update.CallbackQuery != nil {
+				data := ParseCallData(update.CallbackQuery.Data)
+				if _, ok := data["resetAvailablity"]; ok {
+					db := database.Connect()
+					defer db.Close()
 
-				var transaction models.Transaction
-				transaction, err, _ = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).GetOrCreateTransaction(*db)
-				if err != nil {
-					return
+					var transaction models.Transaction
+					transaction, err, _ = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).GetOrCreateTransaction(*db)
+					if err != nil {
+						return
+					}
+
+					err = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).IncreaseProductAvailbleForPurchase(*db, transaction.ID)
 				}
-
-				err = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).IncreaseProductAvailbleForPurchase(*db, transaction.ID)
 			}
 
 			const text = "<b>Главное меню</b>\nВыберите опцию:"

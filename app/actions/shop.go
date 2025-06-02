@@ -137,22 +137,27 @@ func (s Shop) Run(update tgbotapi.Update) error {
 			} else {
 				text = "Выберите каталог"
 
-				var cartItemCount int
-				var cartItems []models.AddedProducts
-				cartItemCount, err = db.Model(&cartItems).
-					Where("user_id = ?", update.CallbackQuery.From.ID).
-					Relation("Product").
-					SelectAndCount()
+				var transaction models.Transaction
+				transaction, err, _ = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).GetOrCreateTransaction(*db)
 				if err != nil {
 					return
 				}
 
-				if cartItemCount > 0 {
+				err = db.Model(&transaction).
+					WherePK().
+					Relation("AddedProducts").
+					Relation("AddedProducts.Product").
+					Select()
+				if err != nil {
+					return
+				}
+
+				if len(transaction.AddedProducts) > 0 {
 					toCartCallbackData := "viewCart?backIsMainMenu=true"
 
 					var total int
-					for _, item := range cartItems {
-						total += item.Product.Price
+					for _, item := range transaction.AddedProducts {
+						total += item.Product.Price * item.ProductCount
 					}
 
 					keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{{Text: fmt.Sprintf("Корзина (%d₽)", total), CallbackData: &toCartCallbackData}})
@@ -368,7 +373,6 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 				return
 			}
 
-			// ToDo: Remake
 			cartDelta, ok := data["cartDelta"]
 			if ok {
 				cartDeltaInt, err := strconv.Atoi(cartDelta)
@@ -408,22 +412,23 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 				}
 			}
 
-			if ok, err := item.InUserCart(update.CallbackQuery.From.ID, *db); ok && err == nil {
+			var productInCartCount int
+			productInCartCount, err = userDb.GetProductInCartCount(*db, item.ID)
+			if err != nil {
+				return
+			}
+
+			if ok, err := item.InUserCart(update.CallbackQuery.From.ID, *db); ok && err == nil && item.AvailbleForPurchase > 0 && productInCartCount != 0 {
 				add1CallbackData := "toCat?cartDelta=1"
 				rem1CallbackData := "toCat?cartDelta=-1"
 				nullCallbackData := "<null>"
-
-				productInCartCount, err := userDb.GetProductInCartCount(*db, item.ID)
-				if err != nil {
-					return
-				}
 
 				buttonRow := []tgbotapi.InlineKeyboardButton{
 					{Text: "-", CallbackData: &rem1CallbackData},
 					{Text: fmt.Sprintf("%s/%s", NumberToEmoji(productInCartCount), NumberToEmoji(item.AvailbleForPurchase)), CallbackData: &nullCallbackData},
 				}
 
-				if productInCartCount <= item.AvailbleForPurchase {
+				if productInCartCount < item.AvailbleForPurchase {
 					buttonRow = append(buttonRow, tgbotapi.InlineKeyboardButton{Text: "+", CallbackData: &add1CallbackData})
 				}
 

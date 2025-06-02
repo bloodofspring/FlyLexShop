@@ -98,6 +98,19 @@ func (m MakeOrder) Run(update tgbotapi.Update) error {
 			m.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
 			m.mu.Unlock()
 
+			if totalPrice == 0 {
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Корзина пуста")
+				msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{
+					{Text: "К списку каталогов", CallbackData: &toListofCats},
+				}}}
+
+				m.mu.Lock()
+				_, err = m.Client.Send(msg)
+				m.mu.Unlock()
+
+				return
+			}
+
 			finalPageText := fmt.Sprintf(makeOrderPageText, totalPrice, user.Phone, user.FIO, user.DeliveryAddress, user.DeliveryService)
 
 			msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, finalPageText)

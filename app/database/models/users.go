@@ -208,7 +208,7 @@ func (u *TelegramUser) RemoveProductFromCart(db pg.DB, productID int) error {
 func (u *TelegramUser) TidyCart(db pg.DB) (bool, error) {
 	transaction, err, _ := u.GetOrCreateTransaction(db)
 	if err != nil {
-		return false,err
+		return false, err
 	}
 
 	err = db.Model(&transaction).
@@ -224,7 +224,7 @@ func (u *TelegramUser) TidyCart(db pg.DB) (bool, error) {
 	for _, item := range transaction.AddedProducts {
 		if item.ProductCount > item.Product.AvailbleForPurchase {
 			if item.Product.AvailbleForPurchase == 0 {
-				_, err := db.Model(&item).
+				_, err := db.Model(item).
 					WherePK().
 					Delete()
 				if err != nil {
@@ -236,7 +236,7 @@ func (u *TelegramUser) TidyCart(db pg.DB) (bool, error) {
 				continue
 			}
 
-			_, err := db.Model(&item).
+			_, err := db.Model(item).
 				WherePK().
 				Set("product_count = ?", item.Product.AvailbleForPurchase).
 				Update()
@@ -294,9 +294,9 @@ func (u *TelegramUser) DecreaseProductAvailbleForPurchase(db pg.DB, transactionI
 	}
 
 	for _, item := range transaction.AddedProducts {
-		_, _err := db.Model(&item.Product).
+		_, _err := db.Model(item.Product).
 			WherePK().
-			Set("availble_for_purchase = ?", item.Product.AvailbleForPurchase - item.ProductCount).
+			Set("availble_for_purchase = ?", item.Product.AvailbleForPurchase-item.ProductCount).
 			Update()
 		if _err != nil {
 			return _err
@@ -324,9 +324,9 @@ func (u *TelegramUser) IncreaseProductAvailbleForPurchase(db pg.DB, transactionI
 	}
 
 	for _, item := range transaction.AddedProducts {
-		_, _err := db.Model(&item.Product).
+		_, _err := db.Model(item.Product).
 			WherePK().
-			Set("availble_for_purchase = ?", item.Product.AvailbleForPurchase + item.ProductCount).
+			Set("availble_for_purchase = ?", item.Product.AvailbleForPurchase+item.ProductCount).
 			Update()
 		if _err != nil {
 			return _err
