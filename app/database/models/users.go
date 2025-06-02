@@ -1,16 +1,12 @@
 package models
 
 import (
-	"sync"
-
 	"github.com/go-pg/pg/v10"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type TelegramUser struct {
 	ID int64 `json:"id"`
-
-	mu sync.Mutex `pg:"-" json:"-"` // мьютекс для защиты конкурентного доступа
 
 	CreatedAtTS int64 `pg:",default:extract(epoch from now())" json:"created_at_ts"`
 	UpdatedAtTS int64 `pg:",default:extract(epoch from now())" json:"updated_at_ts"`
@@ -50,60 +46,73 @@ func (u *TelegramUser) Get(db pg.DB) error {
 }
 
 func (u *TelegramUser) GetOrCreate(apiUser *tgbotapi.User, db pg.DB) error {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	return db.RunInTransaction(db.Context(), func(tx *pg.Tx) error {
+		// Сначала пытаемся получить пользователя в транзакции
+		err := tx.Model(u).Where("id = ?", u.ID).For("UPDATE").Select()
 
-	// Сначала пытаемся получить пользователя
-	err := u.Get(db)
+		// Если пользователь не найден, создаем нового
+		if err == pg.ErrNoRows {
+			u.ID = apiUser.ID
+			u.Username = apiUser.UserName
+			u.FirstName = apiUser.FirstName
+			u.LastName = apiUser.LastName
 
-	// Если пользователь не найден, создаем нового
-	if err == pg.ErrNoRows {
-		u.ID = apiUser.ID
+			_, err = tx.Model(u).Insert()
+			return err
+		} else if err != nil {
+			return err
+		}
+
+		// Если пользователь найден, обновляем его данные
 		u.Username = apiUser.UserName
 		u.FirstName = apiUser.FirstName
 		u.LastName = apiUser.LastName
 
-		_, err = db.Model(u).Insert()
-		if err != nil {
-			return err
-		}
-		return nil
-	} else if err != nil {
-		return err
-	}
+		_, err = tx.Model(u).
+			Where("id = ?", u.ID).
+			Column("username", "first_name", "last_name").
+			Update()
 
-	// Если пользователь найден, обновляем его данные
-	return u.UpdateProfileData(apiUser, &db)
+		return err
+	})
 }
 
 func (u *TelegramUser) GetOrCreateTransaction(db pg.DB) (Transaction, error, bool) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	var result Transaction
+	var isCreated bool
 
-	var activeTransactions []Transaction
+	err := db.RunInTransaction(db.Context(), func(tx *pg.Tx) error {
+		var activeTransactions []Transaction
 
-	err := db.Model(&activeTransactions).
-		Where("user_id = ?", u.ID).
-		Where("is_waiting_for_approval = ?", false).
-		Select()
-	if err != nil {
-		return Transaction{}, err, false
-	}
+		err := tx.Model(&activeTransactions).
+			Where("user_id = ?", u.ID).
+			Where("is_waiting_for_approval = ?", false).
+			For("UPDATE").
+			Select()
+		if err != nil {
+			return err
+		}
 
-	if len(activeTransactions) > 0 {
-		return activeTransactions[0], nil, false
-	}
+		if len(activeTransactions) > 0 {
+			result = activeTransactions[0]
+			isCreated = false
+			return nil
+		}
 
-	transaction := Transaction{
-		UserID: u.ID,
-	}
+		result = Transaction{
+			UserID: u.ID,
+		}
 
-	_, err = db.Model(&transaction).Insert()
-	if err != nil {
-		return Transaction{}, err, false
-	}
+		_, err = tx.Model(&result).Insert()
+		if err != nil {
+			return err
+		}
 
-	return transaction, nil, true
+		isCreated = true
+		return nil
+	})
+
+	return result, err, isCreated
 }
 
 func (u *TelegramUser) GetProductInCartCount(db pg.DB, productID int) (int, error) {
@@ -149,8 +158,8 @@ func (u *TelegramUser) AddProductToCart(db pg.DB, productID int) error {
 		}
 	} else {
 		_, err := db.Model(&AddedProducts{
-			UserID:    u.ID,
-			ProductID: productID,
+			UserID:        u.ID,
+			ProductID:     productID,
 			TransactionID: transaction.ID,
 		}).Insert()
 		if err != nil {
@@ -240,6 +249,6 @@ type AddedProducts struct {
 	Product      *Product `pg:"rel:has-one,fk:product_id"`
 	ProductCount int      `pg:",default:1" json:"product_count"`
 
-	TransactionID int       `json:"transaction_id"`
+	TransactionID int          `json:"transaction_id"`
 	Transaction   *Transaction `pg:"rel:has-one,fk:transaction_id"`
 }
