@@ -46,52 +46,343 @@ func (u *TelegramUser) Get(db pg.DB) error {
 }
 
 func (u *TelegramUser) GetOrCreate(apiUser *tgbotapi.User, db pg.DB) error {
-	// Сначала пытаемся получить пользователя
-	err := u.Get(db)
+	return db.RunInTransaction(db.Context(), func(tx *pg.Tx) error {
+		// Сначала пытаемся получить пользователя в транзакции
+		err := tx.Model(u).Where("id = ?", u.ID).For("UPDATE").Select()
 
-	// Если пользователь не найден, создаем нового
-	if err == pg.ErrNoRows {
-		u.ID = apiUser.ID
+		// Если пользователь не найден, создаем нового
+		if err == pg.ErrNoRows {
+			u.ID = apiUser.ID
+			u.Username = apiUser.UserName
+			u.FirstName = apiUser.FirstName
+			u.LastName = apiUser.LastName
+
+			_, err = tx.Model(u).Insert()
+			return err
+		} else if err != nil {
+			return err
+		}
+
+		// Если пользователь найден, обновляем его данные
 		u.Username = apiUser.UserName
 		u.FirstName = apiUser.FirstName
 		u.LastName = apiUser.LastName
 
-		_, err = db.Model(u).Insert()
+		_, err = tx.Model(u).
+			Where("id = ?", u.ID).
+			Column("username", "first_name", "last_name").
+			Update()
+
+		return err
+	})
+}
+
+func (u *TelegramUser) GetOrCreateTransaction(db pg.DB) (Transaction, error, bool) {
+	var result Transaction
+	var isCreated bool
+
+	err := db.RunInTransaction(db.Context(), func(tx *pg.Tx) error {
+		var activeTransactions []Transaction
+
+		err := tx.Model(&activeTransactions).
+			Where("user_id = ?", u.ID).
+			Where("is_waiting_for_approval = ?", false).
+			For("UPDATE").
+			Select()
 		if err != nil {
 			return err
 		}
+
+		if len(activeTransactions) > 0 {
+			result = activeTransactions[0]
+			isCreated = false
+			return nil
+		}
+
+		result = Transaction{
+			UserID: u.ID,
+		}
+
+		_, err = tx.Model(&result).Insert()
+		if err != nil {
+			return err
+		}
+
+		isCreated = true
 		return nil
-	} else if err != nil {
+	})
+
+	return result, err, isCreated
+}
+
+func (u *TelegramUser) GetProductInCartCount(db pg.DB, productID int) (int, error) {
+	transaction, err, created := u.GetOrCreateTransaction(db)
+	if err != nil {
+		return 0, err
+	}
+
+	if created {
+		return 0, nil
+	}
+
+	var product AddedProducts
+	err = db.Model(&product).
+		Where("user_id = ?", u.ID).
+		Where("product_id = ?", productID).
+		Where("transaction_id = ?", transaction.ID).
+		Select()
+	if err == pg.ErrNoRows {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	return product.ProductCount, nil
+}
+
+func (u *TelegramUser) AddProductToCart(db pg.DB, productID int) error {
+	transaction, err, _ := u.GetOrCreateTransaction(db)
+	if err != nil {
 		return err
 	}
 
-	// Если пользователь найден, обновляем его данные
-	return u.UpdateProfileData(apiUser, &db)
+	if productInCartCount, err := u.GetProductInCartCount(db, productID); err != nil {
+		return err
+	} else if productInCartCount > 0 {
+		_, err := db.Model(&AddedProducts{}).
+			Where("user_id = ?", u.ID).
+			Where("product_id = ?", productID).
+			Where("transaction_id = ?", transaction.ID).
+			Set("product_count = product_count + 1").
+			Update()
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err := db.Model(&AddedProducts{
+			UserID:        u.ID,
+			ProductID:     productID,
+			TransactionID: transaction.ID,
+		}).Insert()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (u *TelegramUser) RemoveProductFromCart(db pg.DB, productID int) error {
+	transaction, err, _ := u.GetOrCreateTransaction(db)
+	if err != nil {
+		return err
+	}
+
+	if productInCartCount, err := u.GetProductInCartCount(db, productID); err != nil {
+		return err
+	} else if productInCartCount > 1 {
+		_, err := db.Model(&AddedProducts{}).
+			Where("user_id = ?", u.ID).
+			Where("product_id = ?", productID).
+			Where("transaction_id = ?", transaction.ID).
+			Set("product_count = product_count - 1").
+			Update()
+		if err != nil {
+			return err
+		}
+	} else if productInCartCount == 1 {
+		_, err = db.Model(&AddedProducts{}).
+			Where("user_id = ?", u.ID).
+			Where("product_id = ?", productID).
+			Where("transaction_id = ?", transaction.ID).
+			Delete()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (u *TelegramUser) TidyCart(db pg.DB) (bool, error) {
+	transaction, err, _ := u.GetOrCreateTransaction(db)
+	if err != nil {
+		return false, err
+	}
+
+	err = db.Model(&transaction).
+		WherePK().
+		Relation("AddedProducts").
+		Relation("AddedProducts.Product").
+		Select()
+	if err != nil {
+		return false, err
+	}
+
+	var cartChanged bool
+	for _, item := range transaction.AddedProducts {
+		if item.ProductCount > item.Product.AvailbleForPurchase {
+			if item.Product.AvailbleForPurchase == 0 {
+				_, err := db.Model(item).
+					WherePK().
+					Delete()
+				if err != nil {
+					return cartChanged, err
+				}
+
+				cartChanged = true
+
+				continue
+			}
+
+			_, err := db.Model(item).
+				WherePK().
+				Set("product_count = ?", item.Product.AvailbleForPurchase).
+				Update()
+			if err != nil {
+				return cartChanged, err
+			}
+
+			cartChanged = true
+		}
+	}
+
+	return cartChanged, nil
+}
+
+func (u *TelegramUser) DropTransaction(db pg.DB, transactionID int) error {
+	var transaction Transaction
+	err := db.Model(&transaction).Where("id = ?", transactionID).Select()
+	if err != nil {
+		return err
+	}
+
+	err = db.Model(&transaction).
+		WherePK().
+		Relation("AddedProducts").
+		Relation("AddedProducts.Product").
+		Select()
+	if err != nil {
+		return err
+	}
+
+	for _, item := range transaction.AddedProducts {
+		db.Model(&item).WherePK().Delete()
+	}
+
+	_, err = db.Model(&transaction).WherePK().Delete()
+
+	return err
+}
+
+func (u *TelegramUser) DecreaseProductAvailbleForPurchase(db pg.DB, transactionID int) error {
+	var transaction Transaction
+	err := db.Model(&transaction).Where("id = ?", transactionID).Select()
+
+	if err != nil {
+		return err
+	}
+
+	err = db.Model(&transaction).
+		WherePK().
+		Relation("AddedProducts").
+		Relation("AddedProducts.Product").
+		Select()
+	if err != nil {
+		return err
+	}
+
+	for _, item := range transaction.AddedProducts {
+		_, _err := db.Model(item.Product).
+			WherePK().
+			Set("availble_for_purchase = ?", item.Product.AvailbleForPurchase-item.ProductCount).
+			Update()
+		if _err != nil {
+			return _err
+		}
+	}
+
+	return nil
+}
+
+func (u *TelegramUser) IncreaseProductAvailbleForPurchase(db pg.DB, transactionID int) error {
+	var transaction Transaction
+	err := db.Model(&transaction).Where("id = ?", transactionID).Select()
+
+	if err != nil {
+		return err
+	}
+
+	err = db.Model(&transaction).
+		WherePK().
+		Relation("AddedProducts").
+		Relation("AddedProducts.Product").
+		Select()
+	if err != nil {
+		return err
+	}
+
+	for _, item := range transaction.AddedProducts {
+		_, _err := db.Model(item.Product).
+			WherePK().
+			Set("availble_for_purchase = ?", item.Product.AvailbleForPurchase+item.ProductCount).
+			Update()
+		if _err != nil {
+			return _err
+		}
+	}
+
+	return nil
 }
 
 func (u *TelegramUser) GetTotalCartPrice(db pg.DB) (int, error) {
-	cart := []ShoppingCart{}
-	err := db.Model(&cart).Where("user_id = ?", u.ID).Select()
+	transaction, err, _ := u.GetOrCreateTransaction(db)
+	if err != nil {
+		return 0, err
+	}
+
+	cart := []AddedProducts{}
+	err = db.Model(&cart).
+		Where("user_id = ?", u.ID).
+		Where("transaction_id = ?", transaction.ID).
+		Relation("Product").
+		Select()
 	if err != nil {
 		return 0, err
 	}
 
 	totalPrice := 0
 	for _, item := range cart {
-		var product Product
-		err = db.Model(&product).Where("id = ?", item.ProductID).Select()
-		if err != nil {
-			continue
-		}
-		totalPrice += product.Price
+		totalPrice += item.Product.Price * item.ProductCount
 	}
 	return totalPrice, nil
 }
 
-type ShoppingCart struct {
-	ID        int           `json:"id"`
-	UserID    int64         `json:"user_id"`
-	User      *TelegramUser `pg:"rel:has-one,fk:user_id"`
-	ProductID int           `json:"product_id"`
-	Product   *Product      `pg:"rel:has-one,fk:product_id"`
+type Transaction struct {
+	ID int `json:"id"`
+
+	CreatedAtTS int64 `pg:",default:extract(epoch from now())" json:"created_at_ts"`
+	UpdatedAtTS int64 `pg:",default:extract(epoch from now())" json:"updated_at_ts"`
+
+	UserID int64         `json:"user_id"`
+	User   *TelegramUser `pg:"rel:has-one,fk:user_id"`
+
+	IsWaitingForApproval bool `pg:",default:false" json:"is_waiting_for_approval"`
+
+	AddedProducts []*AddedProducts `pg:"rel:has-many,join_fk:transaction_id"`
+}
+
+type AddedProducts struct {
+	ID int `json:"id"`
+
+	UserID int64         `json:"user_id"`
+	User   *TelegramUser `pg:"rel:has-one,fk:user_id"`
+
+	ProductID    int      `json:"product_id"`
+	Product      *Product `pg:"rel:has-one,fk:product_id"`
+	ProductCount int      `pg:",default:1" json:"product_count"`
+
+	TransactionID int          `json:"transaction_id"`
+	Transaction   *Transaction `pg:"rel:has-one,fk:transaction_id"`
 }

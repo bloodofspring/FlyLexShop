@@ -92,11 +92,37 @@ func (p PaymentVerdict) Run(update tgbotapi.Update) error {
 				db := database.Connect()
 				defer db.Close()
 
-				_, err = db.Model(&models.ShoppingCart{}).Where("user_id = ?", userId).Delete()
+				_, err = db.Model(&models.AddedProducts{}).Where("user_id = ?", userId).Delete()
 				if err != nil {
 					return
 				}
 
+				var transactionID int
+				transactionID, err = strconv.Atoi(data["tid"])
+				if err != nil {
+					return
+				}
+				err = (&models.TelegramUser{ID: userId}).DropTransaction(*db, transactionID)
+
+				return 
+			}
+
+			db := database.Connect()
+			defer db.Close()
+
+			var transactionID int
+			transactionID, err = strconv.Atoi(data["tid"])
+			if err != nil {
+				return
+			}
+			err = (&models.TelegramUser{ID: userId}).IncreaseProductAvailbleForPurchase(*db, transactionID)
+			if err != nil {
+				return
+			}
+
+			err = (&models.TelegramUser{ID: userId}).DropTransaction(*db, transactionID)
+
+			if err != nil {
 				return
 			}
 

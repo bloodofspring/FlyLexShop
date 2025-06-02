@@ -71,6 +71,23 @@ func (m MakeOrder) Run(update tgbotapi.Update) error {
 				return
 			}
 
+			var cartChanged bool
+			cartChanged, err = user.TidyCart(*db)
+			if err != nil {
+				return
+			}
+
+			if cartChanged {
+				_, err := m.Client.Request(tgbotapi.CallbackConfig{
+					CallbackQueryID: update.CallbackQuery.ID,
+					Text:            "Количество некторых товаров уменьшилось. Проверьте корзину перед покупкой",
+					ShowAlert:       true,
+				})
+				if err != nil {
+					return
+				}
+			}
+
 			var totalPrice int
 			totalPrice, err = user.GetTotalCartPrice(*db)
 			if err != nil {
@@ -80,6 +97,19 @@ func (m MakeOrder) Run(update tgbotapi.Update) error {
 			m.mu.Lock()
 			m.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
 			m.mu.Unlock()
+
+			if totalPrice == 0 {
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Корзина пуста")
+				msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{
+					{Text: "К списку каталогов", CallbackData: &toListofCats},
+				}}}
+
+				m.mu.Lock()
+				_, err = m.Client.Send(msg)
+				m.mu.Unlock()
+
+				return
+			}
 
 			finalPageText := fmt.Sprintf(makeOrderPageText, totalPrice, user.Phone, user.FIO, user.DeliveryAddress, user.DeliveryService)
 

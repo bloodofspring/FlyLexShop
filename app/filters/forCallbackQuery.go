@@ -15,7 +15,7 @@ var RegisterUserFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
 }
 
 var MainMenuFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {
-	return update.CallbackQuery.Data == "mainMenu"
+	return strings.HasPrefix(update.CallbackQuery.Data, "mainMenu")
 }
 
 var ViewCartFilter = func(update tgbotapi.Update, _ tgbotapi.BotAPI) bool {

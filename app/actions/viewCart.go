@@ -68,94 +68,149 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 				return
 			}
 
-			var items []models.Product
-			err = db.Model(&items).Where("id IN (SELECT product_id FROM shopping_carts WHERE user_id = ?)", update.CallbackQuery.From.ID).Select()
+			var transaction models.Transaction
+			transaction, err, _ = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).GetOrCreateTransaction(*db)
 			if err != nil {
 				return
 			}
 
-			if len(items) == 0 {
+			err = db.Model(&transaction).
+				WherePK().
+				Relation("AddedProducts").
+				Relation("AddedProducts.Product").
+				Select()
+			if err != nil {
+				return
+			}
+
+			if len(transaction.AddedProducts) == 0 {
 				v.mu.Lock()
 				_, err = v.Client.Request(tgbotapi.CallbackConfig{
 					CallbackQueryID: update.CallbackQuery.ID,
 					Text:            "В корзине пока что нет товаров",
 				})
 				v.mu.Unlock()
-
 				return
-			} else if itemId >= len(items) {
-				itemId = 0
-			} else if itemId < 0 {
-				itemId = len(items) - 1
 			}
 
-			item := items[itemId]
+			if itemId >= len(transaction.AddedProducts) {
+				itemId = 0
+			} else if itemId < 0 {
+				itemId = len(transaction.AddedProducts) - 1
+			}
 
-			_, ok = pars["remove"]
-			if ok {
-				_, err = db.Model(&models.ShoppingCart{}).Where("user_id = ?", update.CallbackQuery.From.ID).Where("product_id = ?", item.ID).Delete()
+			cartItem := transaction.AddedProducts[itemId]
+			item := cartItem.Product
+			if item == nil {
+				return
+			}
+
+			var cartChanged bool
+			cartChanged, err = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).TidyCart(*db)
+			if err != nil {
+				return
+			}
+
+			if cartChanged {
+				_, err := v.Client.Request(tgbotapi.CallbackConfig{
+					CallbackQueryID: update.CallbackQuery.ID,
+					Text:            "Количество некторых товаров уменьшилось. Проверьте корзину перед покупкой",
+					ShowAlert:       true,
+				})
 				if err != nil {
 					return
 				}
+			}
 
-				err = db.Model(&items).Where("id IN (SELECT product_id FROM shopping_carts WHERE user_id = ?)", update.CallbackQuery.From.ID).Select()
-				if err != nil {
-					return
-				}
 
-				if len(items) == 0 {
-					v.mu.Lock()
-					_, err = v.Client.Request(tgbotapi.CallbackConfig{
-						CallbackQueryID: update.CallbackQuery.ID,
-						Text:            "Теперь ваша карзина пуста",
-						ShowAlert:       true,
-					})
-					v.mu.Unlock()
+			// Обработка изменения количества товара
+			if deltaStr, ok := pars["cartDelta"]; ok {
+				var delta int
+				delta, err = strconv.Atoi(deltaStr)
+				if err == nil {
+					user := models.TelegramUser{ID: update.CallbackQuery.From.ID}
+					if delta == 1 {
+						err = user.AddProductToCart(*db, item.ID)
+					} else if delta == -1 {
+						err = user.RemoveProductFromCart(*db, item.ID)
+					}
 					if err != nil {
 						return
 					}
 
-					handler := NewShopHandler(v.Client)
+					var transaction models.Transaction
+					transaction, err, _ = user.GetOrCreateTransaction(*db)
+					if err != nil {
+						return
+					}
+					err = db.Model(&transaction).
+						WherePK().
+						Relation("AddedProducts").
+						Select()
+					
+					if err != nil {
+						return
+					}
+
+					if len(transaction.AddedProducts) == 0 {
+						v.mu.Lock()
+						_, err = v.Client.Request(tgbotapi.CallbackConfig{
+							CallbackQueryID: update.CallbackQuery.ID,
+							Text:            "Теперь ваша карзина пуста",
+							ShowAlert:       true,
+						})
+						v.mu.Unlock()
+						if err != nil {
+							return
+						}
+	
+						handler := NewShopHandler(v.Client)
+						handler.mu = v.mu
+						err = handler.Run(update)
+						return
+					}
+
+					update.CallbackQuery.Data = fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId, backIsMainMenu)
+					handler := NewViewCartHandler(v.Client)
 					handler.mu = v.mu
 					err = handler.Run(update)
 					return
 				}
-
-				if itemId >= len(items) {
-					itemId = len(items) - 1
-				}
-
-				update.CallbackQuery.Data = fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId, backIsMainMenu)
-
-				handler := NewViewCartHandler(v.Client)
-				handler.mu = v.mu
-				err = handler.Run(update)
-				return
 			}
 
+			// Клавиатура управления количеством
 			keyboard := [][]tgbotapi.InlineKeyboardButton{}
-
-			ok, err = items[itemId].InUserCart(update.CallbackQuery.From.ID, *db)
-			if ok && err == nil {
-				callbackData := fmt.Sprintf("viewCart?itemId=%d&remove=true&backIsMainMenu=%t", itemId, backIsMainMenu)
-				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
-					{Text: "Удалить из корзины❌", CallbackData: &callbackData},
-				})
-			} else if err != nil {
-				return
+			add1CallbackData := fmt.Sprintf("viewCart?itemId=%d&cartDelta=1&backIsMainMenu=%t", itemId, backIsMainMenu)
+			rem1CallbackData := fmt.Sprintf("viewCart?itemId=%d&cartDelta=-1&backIsMainMenu=%t", itemId, backIsMainMenu)
+			nullCallbackData := "<null>"
+			countBtn := tgbotapi.InlineKeyboardButton{
+				Text:         fmt.Sprintf("%s/%s", NumberToEmoji(cartItem.ProductCount), NumberToEmoji(item.AvailbleForPurchase)),
+				CallbackData: &nullCallbackData,
+			}
+			row := []tgbotapi.InlineKeyboardButton{
+				{Text: "-", CallbackData: &rem1CallbackData},
+				countBtn,
 			}
 
-			if len(items) > 1 {
+			if cartItem.ProductCount < item.AvailbleForPurchase {
+				row = append(row, tgbotapi.InlineKeyboardButton{Text: "+", CallbackData: &add1CallbackData})
+			}
+
+			keyboard = append(keyboard, row)
+
+			// Навигация по товарам в корзине
+			if len(transaction.AddedProducts) > 1 {
 				nextItemCallbackData := fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId+1, backIsMainMenu)
 				noneCallbackData := "<null>"
 				prevItemCallbackData := fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId-1, backIsMainMenu)
 				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
 					{Text: "⬅️", CallbackData: &prevItemCallbackData},
-					{Text: fmt.Sprintf("%s/%s", NumberToEmoji(itemId+1), NumberToEmoji(len(items))), CallbackData: &noneCallbackData},
+					{Text: fmt.Sprintf("%s/%s", NumberToEmoji(itemId+1), NumberToEmoji(len(transaction.AddedProducts))), CallbackData: &noneCallbackData},
 					{Text: "➡️", CallbackData: &nextItemCallbackData},
 				})
 			}
 
+			// Кнопки возврата и оформления заказа
 			var toShop string
 			var buttonText string
 			var userDb models.TelegramUser

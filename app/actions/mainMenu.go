@@ -2,6 +2,8 @@ package actions
 
 import (
 	"context"
+	"main/database"
+	"main/database/models"
 	"sync"
 	"time"
 
@@ -45,6 +47,22 @@ func (m MainMenu) Run(update tgbotapi.Update) error {
 			m.mu.Lock()
 			ClearNextStepForUser(update, &m.Client, true)
 			m.mu.Unlock()
+
+			if update.CallbackQuery != nil {
+				data := ParseCallData(update.CallbackQuery.Data)
+				if _, ok := data["resetAvailablity"]; ok {
+					db := database.Connect()
+					defer db.Close()
+
+					var transaction models.Transaction
+					transaction, err, _ = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).GetOrCreateTransaction(*db)
+					if err != nil {
+						return
+					}
+
+					err = (&models.TelegramUser{ID: update.CallbackQuery.From.ID}).IncreaseProductAvailbleForPurchase(*db, transaction.ID)
+				}
+			}
 
 			const text = "<b>Главное меню</b>\nВыберите опцию:"
 

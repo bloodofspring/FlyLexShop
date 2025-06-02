@@ -1,9 +1,14 @@
 package actions
 
 import (
+	"fmt"
 	"main/controllers"
+	"main/database/models"
+	"os"
+	"strconv"
 	"strings"
 
+	"github.com/go-pg/pg/v10"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -111,4 +116,51 @@ func NumberToEmoji(n int) string {
 	}
 
 	return result
+}
+
+func DeleteProductFromUsersCarts(db *pg.DB, productID int, client *tgbotapi.BotAPI) error {
+	addedTo := []models.AddedProducts{}
+	err := db.Model(&addedTo).
+		Where("product_id = ?", productID).
+		Relation("Transaction").
+		Relation("Transaction.AddedProducts").
+		Relation("Product").
+		Relation("User").
+		Select()
+	if err != nil {
+		return err
+	}
+
+	for _, item := range addedTo {
+		if item.Transaction.IsWaitingForApproval {
+			adminChatIdStr := os.Getenv("ADMIN_CHAT_ID")
+
+			adminChatId, err := strconv.ParseInt(adminChatIdStr, 10, 64)
+			if err != nil {
+				return err
+			}
+
+			var userName string
+			if item.User.Username != "" {
+				userName = "@" + item.User.Username
+			} else {
+				userName = "<a href='tg://user?id=" + strconv.FormatInt(item.User.ID, 10) + "'>" + item.User.FirstName + " " + item.User.LastName + "</a>"
+			}
+
+			message := tgbotapi.NewMessage(adminChatId, fmt.Sprintf("Товар удалён из корзины пользователя %s который уже оплатил заказ! Неоходимо осуществить возврат средств на сумму %d₽", userName, item.Product.Price*item.ProductCount))
+
+			_, err = client.Send(message)
+			if err != nil {
+				return err
+			}
+		}
+
+		if len(item.Transaction.AddedProducts) == 1 {
+			db.Model(item.Transaction).WherePK().Delete()
+		}
+
+		db.Model(item).WherePK().Delete()
+	}
+
+	return nil
 }

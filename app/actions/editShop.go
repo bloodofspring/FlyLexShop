@@ -37,10 +37,10 @@ func NewEditShopHandler(client tgbotapi.BotAPI) *EditShop {
 func (e EditShop) Run(update tgbotapi.Update) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	var wg sync.WaitGroup
 	var err error
-	
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -107,19 +107,21 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 				changeDescription(update, e.Client, session)
 			case "createProduct":
 				err = createProduct(update, e.Client, session)
+			case "changeAvailbleForPurchase":
+				err = changeAvailbleForPurchase(update, e.Client, session)
 			}
 			e.mu.Unlock()
 
 			return
 		}
 	}()
-	
+
 	done := make(chan struct{})
 	go func() {
 		wg.Wait()
 		close(done)
 	}()
-	
+
 	select {
 	case <-done:
 		return err
@@ -130,7 +132,20 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 
 // removeCatalog удаляет каталог и возвращает пользователя к списку каталогов.
 func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession, db pg.DB) error {
-	_, err := db.Model(&models.Catalog{}).Where("id = ?", session.CatalogID).Delete()
+	var products []models.Product
+	err := db.Model(&products).Where("catalog_id = ?", session.CatalogID).Select()
+	if err != nil {
+		return err
+	}
+
+	for _, product := range products {
+		err = DeleteProductFromUsersCarts(&db, product.ID, &client)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = db.Model(&models.Catalog{}).Where("id = ?", session.CatalogID).Delete()
 	if err != nil {
 		return err
 	}
@@ -151,12 +166,17 @@ func removeCatalog(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 		return err
 	}
 
-	return Shop{Name: "shop", Client: client}.Run(update)
+	return NewShopHandler(client).Run(update)
 }
 
 // removeProduct удаляет текущий товар и возвращает пользователя к просмотру каталога.
 func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession, db pg.DB) error {
-	_, err := db.Model(session.ProductAt).WherePK().Delete()
+	err := DeleteProductFromUsersCarts(&db, session.ProductAt.ID, &client)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Model(session.ProductAt).WherePK().Delete()
 	if err != nil {
 		return err
 	}
@@ -171,7 +191,8 @@ func removeProduct(update tgbotapi.Update, client tgbotapi.BotAPI, session model
 		return err
 	}
 
-	return ViewCatalog{Name: "viewCatalog", Client: client}.Run(update)
+	handler := NewViewCatalogHandler(client)
+	return handler.Run(update)
 }
 
 // baseForm отображает форму ввода с кнопкой отмены и регистрирует следующий шаг.
@@ -312,6 +333,39 @@ func changePriceHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepPara
 	return baseFormSuccess(client, update, "Цена обновлена!")
 }
 
+func changeAvailbleForPurchase(update tgbotapi.Update, client tgbotapi.BotAPI, session models.ShopViewSession) error {
+	return baseForm(client, update, map[string]any{
+		"session": session,
+	}, "Отправьте ниже количество товаров в наличии", "Количество товаров не обновлено", changeAvailbleForPurchaseHandler)
+}
+
+func changeAvailbleForPurchaseHandler(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
+	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
+	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
+
+	availbleForPurchase := update.Message.Text
+
+	availbleForPurchaseInt, err := strconv.Atoi(availbleForPurchase)
+
+	if err != nil {
+		return baseFormResend(client, update, "Отправьте ниже количество товаров в наличии (целое число!)", "Количество товаров не обновлено", stepParams, changeAvailbleForPurchaseHandler)
+	}
+
+	if availbleForPurchaseInt < 0 {
+		return baseFormResend(client, update, "Количество товаров в наличии не может быть отрицательным", "Количество товаров не обновлено", stepParams, changeAvailbleForPurchaseHandler)
+	}
+
+	db := database.Connect()
+	defer db.Close()
+
+	_, err = db.Model(stepParams["session"].(models.ShopViewSession).ProductAt).WherePK().Set("availble_for_purchase = ?", availbleForPurchaseInt).Update()
+	if err != nil {
+		return err
+	}
+
+	return baseFormSuccess(client, update, "Количество товаров в наличии обновлено!")
+}
+
 // changeName инициирует изменение названия товара.
 // update - обновление от Telegram API.
 // client - экземпляр Telegram бота.
@@ -444,6 +498,21 @@ func registerNewProductDescription(client tgbotapi.BotAPI, update tgbotapi.Updat
 	}
 
 	stepParams["productDescription"] = description
+	return baseForm(client, update, stepParams, "Отправьте ниже количество доступных в наличии товаров", "Товар не создан", registerNewProductAvailbleForPurchase)
+}
+
+func registerNewProductAvailbleForPurchase(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
+	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID-1))
+	client.Send(tgbotapi.NewDeleteMessage(update.Message.Chat.ID, update.Message.MessageID))
+
+	availbleForPurchase := update.Message.Text
+
+	availbleForPurchaseInt, err := strconv.Atoi(availbleForPurchase)
+	if err != nil {
+		return baseFormResend(client, update, "Количество доступных в наличии товаров должно быть числом", "Товар не создан", stepParams, registerNewProductAvailbleForPurchase)
+	}
+
+	stepParams["productAvailbleForPurchase"] = availbleForPurchaseInt
 	return baseForm(client, update, stepParams, "Отправьте ниже фото товара", "Товар не создан", registerNewProductPhoto)
 }
 
@@ -465,11 +534,12 @@ func registerNewProductPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, ste
 	defer db.Close()
 
 	_, err := db.Model(&models.Product{
-		ImageFileID: photoID,
-		Name:        stepParams["productName"].(string),
-		Price:       stepParams["productPrice"].(int),
-		Description: stepParams["productDescription"].(string),
-		CatalogID:   stepParams["session"].(models.ShopViewSession).Catalog.ID,
+		ImageFileID:         photoID,
+		Name:                stepParams["productName"].(string),
+		Price:               stepParams["productPrice"].(int),
+		Description:         stepParams["productDescription"].(string),
+		AvailbleForPurchase: stepParams["productAvailbleForPurchase"].(int),
+		CatalogID:           stepParams["session"].(models.ShopViewSession).Catalog.ID,
 	}).Insert()
 	if err != nil {
 		return err
