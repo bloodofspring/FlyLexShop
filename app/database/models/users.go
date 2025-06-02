@@ -131,6 +131,9 @@ func (u *TelegramUser) GetProductInCartCount(db pg.DB, productID int) (int, erro
 		Where("product_id = ?", productID).
 		Where("transaction_id = ?", transaction.ID).
 		Select()
+	if err == pg.ErrNoRows {
+		return 0, nil
+	}
 	if err != nil {
 		return 0, err
 	}

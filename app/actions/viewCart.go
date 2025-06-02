@@ -110,6 +110,39 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 					if err != nil {
 						return
 					}
+
+					var transaction models.Transaction
+					transaction, err, _ = user.GetOrCreateTransaction(*db)
+					if err != nil {
+						return
+					}
+					err = db.Model(&transaction).
+						WherePK().
+						Relation("AddedProducts").
+						Select()
+					
+					if err != nil {
+						return
+					}
+
+					if len(transaction.AddedProducts) == 0 {
+						v.mu.Lock()
+						_, err = v.Client.Request(tgbotapi.CallbackConfig{
+							CallbackQueryID: update.CallbackQuery.ID,
+							Text:            "Теперь ваша карзина пуста",
+							ShowAlert:       true,
+						})
+						v.mu.Unlock()
+						if err != nil {
+							return
+						}
+	
+						handler := NewShopHandler(v.Client)
+						handler.mu = v.mu
+						err = handler.Run(update)
+						return
+					}
+
 					// Перезапускаем обработчик для обновления отображения
 					update.CallbackQuery.Data = fmt.Sprintf("viewCart?itemId=%d&backIsMainMenu=%t", itemId, backIsMainMenu)
 					handler := NewViewCartHandler(v.Client)
@@ -131,8 +164,12 @@ func (v ViewCart) Run(update tgbotapi.Update) error {
 			row := []tgbotapi.InlineKeyboardButton{
 				{Text: "-", CallbackData: &rem1CallbackData},
 				countBtn,
-				{Text: "+", CallbackData: &add1CallbackData},
 			}
+
+			if cartItem.ProductCount <= item.AvailbleForPurchase {
+				row = append(row, tgbotapi.InlineKeyboardButton{Text: "+", CallbackData: &add1CallbackData})
+			}
+
 			keyboard = append(keyboard, row)
 
 			// Навигация по товарам в корзине

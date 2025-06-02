@@ -377,12 +377,12 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 				}
 
 				if cartDeltaInt == 1 {
-					err := userDb.AddProductToCart(*db, item.ID)
+					err = userDb.AddProductToCart(*db, item.ID)
 					if err != nil {
 						return
 					}
 				} else if cartDeltaInt == -1 {
-					err := userDb.RemoveProductFromCart(*db, item.ID)
+					err = userDb.RemoveProductFromCart(*db, item.ID)
 					if err != nil {
 						return
 					}
@@ -401,16 +401,16 @@ func (v ViewCatalog) Run(update tgbotapi.Update) error {
 					return
 				}
 
-				keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
+				buttonRow := []tgbotapi.InlineKeyboardButton{
 					{Text: "-", CallbackData: &rem1CallbackData},
 					{Text: fmt.Sprintf("%s/%s", NumberToEmoji(productInCartCount), NumberToEmoji(item.AvailbleForPurchase)), CallbackData: &nullCallbackData},
-				})
+				}
 
 				if productInCartCount <= item.AvailbleForPurchase {
-					keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
-						{Text: "+", CallbackData: &add1CallbackData},
-					})
+					buttonRow = append(buttonRow, tgbotapi.InlineKeyboardButton{Text: "+", CallbackData: &add1CallbackData})
 				}
+
+				keyboard = append(keyboard, buttonRow)
 			} else if err != nil {
 				return
 			} else if item.AvailbleForPurchase > 0 {
