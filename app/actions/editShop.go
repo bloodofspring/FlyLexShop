@@ -6,6 +6,7 @@ import (
 	"main/database"
 	"main/database/models"
 	"main/filters"
+	"main/logger"
 	"strconv"
 	"sync"
 	"time"
@@ -41,6 +42,10 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 	var wg sync.WaitGroup
 	var err error
 
+	// TODO: Delete
+	log := logger.GetLogger()
+
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -55,11 +60,15 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 			db := database.Connect()
 			defer db.Close()
 
+			log.Info("[EditShop.Run]: Next step cleared, database connected. Success: all")
+
 			userDb := models.TelegramUser{ID: update.CallbackQuery.From.ID}
 			err = userDb.Get(*db)
 			if err != nil {
 				return
 			}
+
+			log.Info("[EditShop.Run] User selected. Success. %v", userDb)
 
 			err = db.Model(&userDb).
 				WherePK().
@@ -71,7 +80,10 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 				return
 			}
 
+			log.Info("[EditShop.Run] Relations to user selected")
+
 			if userDb.ShopSession == nil || userDb.ShopSession.CatalogID == 0 {
+				log.Info("[EditShop.Run] No valid shop session available. redirectiong to NewViewCatalogHandler")
 				handler := NewViewCatalogHandler(e.Client)
 				handler.mu = e.mu
 				err = handler.Run(update)
@@ -82,6 +94,8 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 			data := filters.ParseCallbackData(update.CallbackQuery.Data)
 			session := *userDb.ShopSession
 
+			log.Info("[EditShop.Run] ShopSession model loaded")
+
 			if session.Catalog == nil {
 				session.Catalog = &models.Catalog{ID: session.CatalogID}
 			}
@@ -90,6 +104,8 @@ func (e EditShop) Run(update tgbotapi.Update) error {
 			if err != nil {
 				return
 			}
+
+			log.Info("[EditShop.Run] Catalog selected!")
 
 			e.mu.Lock()
 			switch data["a"] {
