@@ -42,5 +42,41 @@ func InitDb() error {
 		}
 	}
 
+	createForeignKeys(db)
+
+	return nil
+}
+
+func createForeignKeys(db *pg.DB) error {
+	fks := []string{
+		// Индекс для быстрого поиска самого старого сообщения в чате
+		// Используется в registerNewMessage для удаления старых сообщений
+		`ALTER TABLE added_products
+		ADD CONSTRAINT fk_added_products_transaction
+		FOREIGN KEY (transaction_id)
+		REFERENCES transactions(id)
+		ON DELETE CASCADE;`,
+
+		// Индекс для поиска сообщений по tg_id и chat_id
+		// Используется при обработке reply_to_message и в handleDeletedMessage
+		`ALTER TABLE added_products
+		ADD CONSTRAINT fk_added_products_product
+		FOREIGN KEY (product_id)
+		REFERENCES products(id)
+		ON DELETE CASCADE;`,
+
+		// Индекс для подсчета количества сообщений в чате
+		// Используется в GetMessagesCount
+		`ALTER TABLE added_products
+		ADD CONSTRAINT fk_added_products_user
+		FOREIGN KEY (user_id)
+		REFERENCES telegram_users(id)
+		ON DELETE CASCADE;`,
+	}
+
+	for _, fk := range fks {
+		db.Exec(fk)
+	}
+
 	return nil
 }
