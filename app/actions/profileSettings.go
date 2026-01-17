@@ -292,7 +292,7 @@ type ChangeDeliveryAddress struct {
 
 func (c ChangeDeliveryAddress) Run(update tgbotapi.Update) error {
 	c.Client.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
-	const text = "Ваш адрес доставки сейчас:\n<b>%s</b>\n\n<i>Введите новый адрес доставки для сервиса %s:</i>"
+	const text = "Ваш адрес доставки сейчас:\n<b>%s</b>\n\n<i>Введите новый адрес пвз для сервиса %s (не забудьте указать город)</i>"
 
 	message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
 	message.ParseMode = "HTML"

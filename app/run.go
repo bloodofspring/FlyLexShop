@@ -22,17 +22,23 @@ import (
 )
 
 const (
-	debug = false
 	maxWorkers      = 50
 	shutdownTimeout = 5 * time.Second
 	metricsInterval = 12 * time.Hour
+)
+
+var (
+	debug = false
 )
 
 
 func connect() *tgbotapi.BotAPI {
 	_ = godotenv.Load() // Для dev-режима подхватит .env, в проде проигнорирует
 
+	debug = os.Getenv("DEBUG") == "true"
+
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("API_KEY"))
+	bot.Debug = debug
 	if err != nil {
 		panic(err)
 	}

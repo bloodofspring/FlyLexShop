@@ -36,6 +36,7 @@ func NewRegisterUserHandler(client tgbotapi.BotAPI) *RegisterUser {
 // stepParams - параметры шага регистрации
 // Возвращает ошибку, если что-то пошло не так
 func RegistrationCompleted(client tgbotapi.BotAPI, update tgbotapi.Update, stepParams map[string]any) error {
+	fmt.Println(1)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -145,7 +146,7 @@ func (g GetPVZ) Run(update tgbotapi.Update) error {
 			db := database.Connect()
 			defer db.Close()
 		
-			message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, fmt.Sprintf("Введите адрес ближайшего ПВЗ %s для дальнейшего оформления заказов ", servisePVZName))
+			message := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, fmt.Sprintf("Введите адрес пвз для сервиса %s (не забудьте указать город) ", servisePVZName))
 			mu.Lock()
 			_, err = g.Client.Send(message)
 			mu.Unlock()
