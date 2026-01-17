@@ -131,6 +131,9 @@ func DeleteProductFromUsersCarts(db *pg.DB, productID int, client *tgbotapi.BotA
 	}
 
 	for _, item := range addedTo {
+		if item.Transaction == nil {
+			continue
+		}
 		if item.Transaction.IsWaitingForApproval {
 			adminChatIdStr := os.Getenv("ADMIN_CHAT_ID")
 
