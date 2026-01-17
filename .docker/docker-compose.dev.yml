@@ -7,7 +7,7 @@ services:
     container_name: flylex-bot
     restart: unless-stopped
     env_file:
-      - ../app/.env # В dev-режиме удобно использовать .env
+      - .env # В dev-режиме удобно использовать .env
     depends_on:
       - db
     volumes:
@@ -19,7 +19,11 @@ services:
     container_name: flylex-db
     restart: unless-stopped
     env_file:
-      - ../app/.env # Переменные для базы также через .env
+      - .env # Переменные для базы также через .env
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
     ports:
       - "5445:5432"
     volumes:

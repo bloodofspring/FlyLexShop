@@ -108,6 +108,12 @@ func RegisterPaymentPhoto(client tgbotapi.BotAPI, update tgbotapi.Update, stepPa
 			cartDesc += "\n|_ Номер телефона: " + user.Phone
 			cartDesc += "\n|_ ФИО: " + user.FIO
 
+			if user.Username != "" {
+				cartDesc += "\n|_ Telegram: @" + user.Username
+			} else {
+				cartDesc += fmt.Sprintf("\n|_ Telegram: <a href='tg://user?id=%d'>%s</a>", user.ID, user.FirstName + " " + user.LastName)
+			}
+
 			var chatID int64
 			chatID, err = strconv.ParseInt(adminChatID, 10, 64)
 			if err != nil {
