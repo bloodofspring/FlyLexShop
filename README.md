@@ -1,3 +1,5 @@
 # FlyLexShop - Бот для продажи шняги для FPV
 
--- by bloodofspring
+-- __by bloodofspring__
+
+Still Waiting for something to happen?
